@@ -57,11 +57,20 @@
     {
       "id": "arch-007",
       "description": "Backend domain layer imports only the standard library and itself",
-      "check": "node tools/py.mjs tools/check_domain_imports.py",
-      "expect": "^PASS: domain layer",
+      "check": "node tools/py.mjs tools/check_layer_imports.py domain",
+      "expect": "^PASS: layer imports follow the rules for domain",
       "what": "A module in backend/src/invoice_intake/domain imports a third-party package or another backend layer (api, services, infrastructure, config).",
       "why": "The domain holds the invoice rules and state machine; keeping it free of frameworks and outer layers makes those rules testable in isolation and lets infrastructure (database, queue, AI providers) change without touching them (docs/ARCHITECTURE.md, Application Dependency Rules).",
-      "fix": "Move the dependency behind an interface defined in the domain and implement it in infrastructure, or move the code out of the domain. The checker output lists each offending file, line and module."
+      "fix": "Move the dependency behind an interface defined in the domain and implement it in infrastructure, or move the code out of the domain. The checker output (backend/tools/check_layer_imports.py) lists each offending file, line and module."
+    },
+    {
+      "id": "arch-008",
+      "description": "Backend api and services layers never import infrastructure",
+      "check": "node tools/py.mjs tools/check_layer_imports.py api services",
+      "expect": "^PASS: layer imports follow the rules for api, services",
+      "what": "A module in backend/src/invoice_intake/api or services imports invoice_intake.infrastructure or the composition root (main), or services imports api.",
+      "why": "Presentation and use cases must not depend on storage or other adapters: infrastructure implements interfaces the domain defines, and only the composition root (main.py) wires concrete adapters in. This keeps services testable with in-memory fakes and lets the database or providers change without touching them (docs/ARCHITECTURE.md, Application Dependency Rules).",
+      "fix": "Depend on the domain interface (for example InvoiceRepository) or a factory the composition root provides on app.state, and do the wiring in main.py. The checker output lists each offending file, line and module."
     }
   ]
 }

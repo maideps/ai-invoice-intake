@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (feat-001 to feat-003 passing; next: feat-004)
+- Current active feature (or none): none (feat-001 to feat-004 passing; next: feat-005)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -56,16 +56,18 @@ Keep the "Current Verified State" block current at all times; the session log be
 
 ### Session 004 — 2026-10-12
 
-- Goal: first run on the author's Windows machine, provider-by-config plan change, then feat-002 (invoice domain model and state machine) and feat-003 (synthetic invoice generator).
+- Goal: first run on the author's Windows machine, provider-by-config plan change, then feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator) and feat-004 (persistence and upload API).
 - Completed:
   - Windows baseline: `npm run setup:backend` and `npm run check` pass (Python 3.14 venv); the earlier mypy cache issue did not occur.
   - D-005: the extraction provider is chosen by `INVOICE_INTAKE_EXTRACTION_PROVIDER` through one factory (default `fake`); feat-005 declaration, ARCHITECTURE.md and README updated (commit f48a0b4).
   - feat-002: sprint contract `docs/sprints/feat-002.md`; domain package (`actors`, `status`, `audit`, `invoice`, `errors`) with the state machine, actor rules (only a user approves or rejects), required rejection reason, append-only audit trail, Decimal-only money, timezone-aware times.
   - feat-003: sprint contract `docs/sprints/feat-003.md`; generator in `backend/tools/samplegen/` (7 fictional vendors, 4 languages, 5 currencies, 3 layouts), `npm run samples`, strict ground-truth loader, 12 committed samples in `samples/invoices/` with `samples/README.md` and `samples/.gitattributes`; ReportLab 4.5.1 pinned (D-006). PDFs checked visually in the browser pane.
+  - feat-004: sprint contract `docs/sprints/feat-004.md`; `InvoiceRepository` and `Invoice.restore` in the domain; SQLAlchemy 2 models, `SqlInvoiceRepository`, Alembic migration 0001 (append-only trigger on `audit_events`), `npm run db:migrate`; `IntakeService` (magic-byte type check, size limit, filename cleaning); `POST /invoices`, `GET /invoices`, `/{id}`, `/{id}/events`, `/{id}/document`; uploader from `X-User`; commit before response (`scope="function"`). Import checker generalised to `backend/tools/check_layer_imports.py` with new arch-008 (api/services never import infrastructure). Tests use a testcontainers PostgreSQL and fail with a clear message without Docker (author's choice). D-007.
+  - Live check: dev database container on port 5433, `npm run db:migrate`, server via the preview pane, real upload of `invoice-002.pdf` (201, audit event by `maide`, byte-identical download, 415 for a non-invoice file); container and temporary launch config removed afterwards.
   - arch-007 in `.harness/arch-rules.json`: `backend/tools/check_domain_imports.py` fails on any domain import outside the standard library or the domain package; shown to fail on a planted `invoice_intake.config` import.
-- Verification run: `npm run verify-feature -- feat-002` and `-- feat-003` (layers 1-3 pass, e2e SKIP placeholder); `npm run check-arch` (all 7 rules pass); 129 backend tests, ruff, mypy --strict on src, tests and tools.
-- Evidence captured: `.harness/state/feat-002.json` and `.harness/state/feat-003.json` (written by verify-feature).
-- Commits: f48a0b4 (D-005), 44a0fc1 (feat-002); feat-003 is the next commit.
+- Verification run: `npm run verify-feature -- feat-002`, `-- feat-003` and `-- feat-004` (layers 1-3 pass, e2e SKIP placeholder); `npm run check-arch` (all 8 rules pass; arch-007 and arch-008 shown to fail on planted imports); 212 backend tests (36 against PostgreSQL), ruff, mypy --strict on src, tests, tools and migrations.
+- Evidence captured: `.harness/state/feat-002.json`, `feat-003.json` and `feat-004.json` (written by verify-feature).
+- Commits: f48a0b4 (D-005), 44a0fc1 (feat-002), d0f6278 (feat-003); feat-004 is the next commit.
 - Files or artifacts updated: backend/src/invoice_intake/domain/, backend/tests/ (domain tests), backend/tools/, backend/pyproject.toml (pytest and mypy paths), .harness/arch-rules.json, docs/ARCHITECTURE.md, docs/quality-document.md, docs/sprints/feat-002.md, PROGRESS.md, session-handoff.md.
-- Known risk or unresolved issue: the state set has no `failed` status; feat-007 (worker) must add it with its transitions. The `Invoice` entity can only be created as a new upload; feat-004 needs a way to rebuild one from stored events. Field edits and their audit actions belong to feat-006. The ground-truth helpers live in `backend/tools/samplegen/`; if the fake extraction provider (feat-005) needs them at runtime, move them into the app package. Upgrading ReportLab means regenerating the samples.
-- Next best step: feat-004 (PostgreSQL persistence and upload API), sprint contract first; it needs Docker or a local PostgreSQL for integration tests.
+- Known risk or unresolved issue: the state set has no `failed` status; feat-007 (worker) must add it with its transitions. The `Invoice` entity can only be created as a new upload; feat-004 needs a way to rebuild one from stored events. Field edits and their audit actions belong to feat-006. The ground-truth helpers live in `backend/tools/samplegen/`; if the fake extraction provider (feat-005) needs them at runtime, move them into the app package. Upgrading ReportLab means regenerating the samples. `npm run check` now needs Docker running (database tests fail, by design, without it). `Invoice.restore` only replays `status_changed` events; feat-005/006 must extend it when they add new audit actions. The `X-User` header is trusted as-is (no authentication, a documented non-goal).
+- Next best step: feat-005 (AI extraction service: provider interface, OpenAI and fake providers chosen by config per D-005), sprint contract first.

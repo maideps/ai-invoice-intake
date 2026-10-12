@@ -1,1 +1,2 @@
-"""Presentation layer: HTTP routers and request/response schemas. Depends on services and domain."""
+"""Presentation layer: HTTP routers and request/response schemas. Depends on services and domain;
+never imports infrastructure (arch-008)."""

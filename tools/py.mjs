@@ -55,7 +55,7 @@ if (!python) {
   console.error("No Python interpreter found (need Python >= 3.10 on PATH).");
   process.exit(1);
 }
-const ready = spawnSync(python, ["-c", "import invoice_intake, fastapi, pytest, mypy, ruff, reportlab"], {
+const ready = spawnSync(python, ["-c", "import invoice_intake, fastapi, sqlalchemy, alembic, pytest, mypy, ruff, reportlab, testcontainers"], {
   cwd: backend,
   stdio: "ignore",
 }).status === 0;

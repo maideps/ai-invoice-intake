@@ -62,6 +62,7 @@
     "prepublishOnly": "npm run check && npm run check-arch",
     "setup:backend": "node tools/py.mjs setup",
     "dev:backend": "node tools/py.mjs -m uvicorn invoice_intake.main:app --reload --port 8000",
+    "db:migrate": "node tools/py.mjs -m alembic upgrade head",
     "samples": "node tools/py.mjs tools/generate_samples.py"
   },
   "bin": {

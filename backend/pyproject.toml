@@ -8,8 +8,12 @@ dynamic = ["version"]
 description = "AI Invoice Intake backend: FastAPI service and worker"
 requires-python = ">=3.10"
 dependencies = [
-    "fastapi>=0.115",
+    "alembic>=1.13",
+    "fastapi>=0.121",  # Depends(scope=...)
+    "psycopg[binary]>=3.2",
     "pydantic-settings>=2.5",
+    "python-multipart>=0.0.9",
+    "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.30",
 ]
 
@@ -21,6 +25,7 @@ dev = [
     # Pinned exactly: the committed sample PDFs are byte-compared against this version's output (D-006).
     "reportlab==4.5.1",
     "ruff>=0.6",
+    "testcontainers[postgres]>=4.8",
     "types-reportlab==4.5.1.20260827",
 ]
 
@@ -33,6 +38,7 @@ version = { attr = "invoice_intake.__version__" }
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tools"]
+markers = ["postgres: needs Docker; runs against a throwaway PostgreSQL container"]
 
 [tool.ruff]
 line-length = 100
@@ -44,5 +50,5 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 [tool.mypy]
 strict = true
 python_version = "3.10"
-files = ["src", "tests", "tools"]
+files = ["src", "tests", "tools", "migrations"]
 mypy_path = "tools"

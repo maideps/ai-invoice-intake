@@ -71,7 +71,7 @@ React + TypeScript dashboard  --HTTP-->  FastAPI service  --->  PostgreSQL
 
 Product directories (declared in `.harness/manifest.json` as `productRoots`):
 
-- `backend/` — FastAPI service and worker (Python). Layers: `api/` (presentation), `services/` (application), `domain/` (entities, state machine, rules), `infrastructure/` (database, queue, extraction providers, webhook).
+- `backend/` — FastAPI service and worker (Python). Layers: `api/` (presentation), `services/` (application), `domain/` (entities, state machine, rules), `infrastructure/` (database, queue, extraction providers, webhook). `main.py` is the composition root: the only module that wires infrastructure into the app. Alembic migrations live in `backend/migrations/` (`npm run db:migrate`).
 - `frontend/` — React + TypeScript review dashboard.
 - `samples/` — the committed synthetic invoices (PDF plus ground-truth JSON). The generator that produces them lives in `backend/tools/samplegen/` so the backend's ruff, mypy and pytest cover it; run it with `npm run samples` (D-006).
 - `docker-compose.yml` — local stack (API, worker, Postgres, Redis, frontend).
@@ -79,6 +79,8 @@ Product directories (declared in `.harness/manifest.json` as `productRoots`):
 Key design rules:
 
 - The invoice lifecycle is an explicit state machine in the domain layer (`backend/src/invoice_intake/domain/status.py`): `uploaded -> extracting -> needs_review -> approved -> exported`, or `needs_review -> rejected`. `rejected` and `exported` are terminal. Each move names the actor kind allowed to make it: only a `user` may approve or reject, and the platform (`system`) makes every other move. A rejection needs a reason.
-- The domain layer imports only the standard library and itself; `check-arch` enforces this as arch-007 (`backend/tools/check_domain_imports.py`).
+- The domain layer imports only the standard library and itself (arch-007); `api` and `services` never import `infrastructure` or `main` (arch-008). Both rules run in `check-arch` through `backend/tools/check_layer_imports.py`.
+- Persistence (D-007): the domain defines `InvoiceRepository`; `SqlInvoiceRepository` implements it on PostgreSQL with SQLAlchemy 2. The original upload is stored in the database (`invoice_documents`, `bytea`). A trigger makes `audit_events` append-only, so even direct SQL cannot rewrite history. `Invoice.restore` rebuilds an invoice by replaying its stored trail through the lifecycle rules, and `save` appends only new events with an optimistic concurrency check.
+- Each request gets one service and one database transaction, which commits before the response is sent (a failed commit is an error response, never a false success).
 - The extraction provider is an interface owned by the domain; infrastructure implements it (OpenAI first, plus a deterministic fake for tests). `INVOICE_INTAKE_EXTRACTION_PROVIDER` selects the implementation in one factory, and nothing else names a concrete provider (D-005).
 - Every state change and every AI or human edit appends an audit event; events are never updated or deleted.

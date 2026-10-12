@@ -100,3 +100,25 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: byte-identical output on every OS, proven by tests; ground truth is valid domain data by construction.
 - Negative: upgrading ReportLab (or changing the generator) means regenerating and re-committing the samples; uncompressed PDFs are larger (about 4-5 KB each, fine at this size).
+
+### D-007: Persistence on PostgreSQL with SQLAlchemy 2, Alembic and container-based tests
+
+**Date:** 2026-10-12
+**Status:** accepted
+**Context:** feat-004 stores invoices, their audit trail and the uploaded file, and exposes upload and read endpoints. The audit trail is the product's evidence of who decided what, so it must not be editable. Tests must prove the code works against a real PostgreSQL. The author's machine has Docker Desktop, plus a local PostgreSQL on port 5432 whose credentials the project should not depend on.
+**Decision:**
+- SQLAlchemy 2 (sync) with psycopg 3, and Alembic migrations written by hand. A test compares the models with the migrated schema. Handlers are plain functions, which FastAPI runs in a thread pool.
+- The domain owns `InvoiceRepository`; infrastructure implements it. A new arch-008 rule keeps `api` and `services` from importing infrastructure, and `main.py` is the only place that wires it in.
+- One transaction per request, through a service factory on `app.state`. The dependency uses FastAPI's `scope="function"` so the commit happens before the response is sent.
+- `audit_events` is append-only in the database: a trigger raises on UPDATE or DELETE. `Invoice.restore` derives the status from the trail and rejects a trail the lifecycle rules would not produce. `save` locks the row, appends only new events, and raises `ConcurrentModificationError` when the stored trail moved on.
+- The uploaded file goes into PostgreSQL (`bytea`, 10 MB default limit). Its type comes from the file's first bytes (PDF, PNG, JPEG), not from the client.
+- The uploader comes from an `X-User` header, default `anonymous`. This is a stand-in until authentication exists, which is a non-goal for version 1.
+- Tests start a throwaway `postgres:16-alpine` container with testcontainers. If Docker is unavailable they fail with a clear message instead of skipping, so a green run always means persistence was tested (author's choice). The development database uses port 5433.
+**Alternatives considered:**
+- Async SQLAlchemy — Rejected for now: the worker (feat-007) will be synchronous anyway, and sync code is simpler to test; thread-pool handlers are enough at this scale.
+- Store files on disk or in object storage — Rejected for now: the API and worker containers would need a shared volume or a second service; the `get_document` repository method keeps that change local if it is ever needed.
+- SQLite for tests — Rejected: CHECK constraints, triggers, `numeric` scale and row locks behave differently, so tests would prove less.
+- Skip database tests without Docker — Rejected by the author: it lets `npm run check` go green without testing persistence.
+**Consequences:**
+- Positive: history cannot be rewritten even with direct SQL; persistence is tested against the real database engine; the API and services can be tested with an in-memory repository.
+- Negative: `npm run check` needs Docker; the first run pulls the image; listing loads each page's invoices with their events (two extra queries per page, fine at this scale).

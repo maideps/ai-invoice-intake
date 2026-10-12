@@ -1,0 +1,75 @@
+"""Shared fixtures. PostgreSQL fixtures start one throwaway container per test session.
+
+Tests that use them need Docker. Without it they fail (not skip) with a message saying so:
+a green test run must mean the persistence code ran against a real PostgreSQL.
+"""
+
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import Engine, text
+from sqlalchemy.orm import Session, sessionmaker
+
+from invoice_intake.infrastructure.database import make_engine, make_session_factory
+
+BACKEND = Path(__file__).resolve().parents[1]
+POSTGRES_IMAGE = "postgres:16-alpine"
+TABLES = "invoices, invoice_line_items, audit_events, invoice_documents"
+
+
+def alembic_config(url: str) -> Config:
+    config = Config(str(BACKEND / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))  # configparser escaping
+    config.attributes["configure_logger"] = False  # leave pytest's logging alone
+    return config
+
+
+@pytest.fixture(scope="session")
+def postgres_url() -> Iterator[str]:
+    """Connection URL of a fresh PostgreSQL container for this test session."""
+    from testcontainers.community.postgres import PostgresContainer
+
+    try:  # creating the container object already talks to Docker
+        container = PostgresContainer(POSTGRES_IMAGE, driver="psycopg")
+        container.start()
+    except Exception as error:  # docker missing, not running, or image pull failed
+        pytest.fail(
+            "PostgreSQL integration tests need Docker running: testcontainers could not start "
+            f"{POSTGRES_IMAGE} ({type(error).__name__}: {error}). Start Docker Desktop and rerun, "
+            'or run only the other tests with: pytest -m "not postgres"',
+            pytrace=False,
+        )
+    try:
+        yield container.get_connection_url()
+    finally:
+        container.stop()
+
+
+@pytest.fixture(scope="session")
+def migrated_url(postgres_url: str) -> str:
+    command.upgrade(alembic_config(postgres_url), "head")
+    return postgres_url
+
+
+@pytest.fixture
+def engine(migrated_url: str) -> Iterator[Engine]:
+    """The migrated database, emptied after each test.
+
+    TRUNCATE is a statement-level operation, so the row-level append-only trigger on
+    audit_events does not block cleanup.
+    """
+    engine = make_engine(migrated_url)
+    try:
+        yield engine
+    finally:
+        with engine.begin() as connection:
+            connection.execute(text(f"TRUNCATE {TABLES}"))
+        engine.dispose()
+
+
+@pytest.fixture
+def sessions(engine: Engine) -> sessionmaker[Session]:
+    return make_session_factory(engine)

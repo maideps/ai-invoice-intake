@@ -15,3 +15,7 @@ class ActorNotPermittedError(DomainError):
 
 class InvalidInvoiceDataError(DomainError, ValueError):
     """An invoice, line item or audit value is malformed."""
+
+
+class ConcurrentModificationError(DomainError):
+    """The invoice changed in storage after it was loaded; reload it and try again."""

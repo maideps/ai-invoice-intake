@@ -1,6 +1,7 @@
 """The invoice entity, its extracted fields and line items."""
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -8,7 +9,12 @@ from uuid import UUID, uuid4
 
 from .actors import Actor
 from .audit import AuditAction, AuditEvent, require_aware
-from .errors import ActorNotPermittedError, InvalidInvoiceDataError, InvalidTransitionError
+from .errors import (
+    ActorNotPermittedError,
+    DomainError,
+    InvalidInvoiceDataError,
+    InvalidTransitionError,
+)
 from .status import TRANSITIONS, InvoiceStatus
 
 _CURRENCY = re.compile(r"^[A-Z]{3}$")
@@ -104,6 +110,47 @@ class Invoice:
                 to_status=InvoiceStatus.UPLOADED,
             )
         ]
+
+    @classmethod
+    def restore(
+        cls,
+        *,
+        id: UUID,
+        filename: str,
+        uploaded_at: datetime,
+        fields: InvoiceFields,
+        events: Sequence[AuditEvent],
+    ) -> "Invoice":
+        """Rebuild a stored invoice by replaying its audit trail through the lifecycle rules.
+
+        The status is whatever the trail ends in, so a stored status can never disagree with
+        the history. A trail that the rules would not have produced is rejected.
+        """
+        if not events:
+            raise InvalidInvoiceDataError("a stored invoice needs at least its upload event")
+        invoice = cls(
+            filename=filename,
+            uploaded_by=events[0].actor,
+            uploaded_at=uploaded_at,
+            id=id,
+            fields=fields,
+        )
+        if events[0] != invoice._events[0]:
+            raise InvalidInvoiceDataError("the first audit event must be the upload")
+        for event in events[1:]:
+            try:
+                replayed = invoice.transition_to(
+                    event.to_status, actor=event.actor, at=event.occurred_at, reason=event.reason
+                )
+            except DomainError as error:
+                raise InvalidInvoiceDataError(
+                    f"stored audit event {event.sequence} breaks the lifecycle: {error}"
+                ) from error
+            if replayed != event:
+                raise InvalidInvoiceDataError(
+                    f"stored audit event {event.sequence} does not continue the trail"
+                )
+        return invoice
 
     @property
     def id(self) -> UUID:

@@ -8,20 +8,25 @@ A full-stack, human-in-the-loop invoice automation app. Invoices are uploaded, a
 
 ## Status
 
-Early development. In place so far: the FastAPI service skeleton (`GET /health`, typed settings, layered packages), the invoice domain model and state machine, and a synthetic invoice generator with 12 committed samples in [`samples/`](samples/README.md). See [`feature_list.json`](feature_list.json) for the feature plan and [`PROGRESS.md`](PROGRESS.md) for the current state.
+Early development. In place so far: the FastAPI service skeleton (`GET /health`, typed settings, layered packages), the invoice domain model and state machine, a synthetic invoice generator with 12 committed samples in [`samples/`](samples/README.md), and PostgreSQL persistence with an upload API (`POST /invoices`, list, fetch, audit events, original document). See [`feature_list.json`](feature_list.json) for the feature plan and [`PROGRESS.md`](PROGRESS.md) for the current state.
 
 ## Backend quick start
 
-Requires Node.js >= 18 (the harness) and Python >= 3.10.
+Requires Node.js >= 18 (the harness), Python >= 3.10 and Docker (the database, and the test suite's throwaway PostgreSQL).
 
 ```bash
 npm run setup:backend   # creates backend/.venv and installs the backend with dev tools
+docker run -d --name invoice-intake-db -p 5433:5432 -e POSTGRES_USER=invoice_intake -e POSTGRES_PASSWORD=invoice_intake -e POSTGRES_DB=invoice_intake postgres:16-alpine
+npm run db:migrate      # applies the Alembic migrations
 npm run dev:backend     # serves http://localhost:8000 (docs at /docs)
 curl http://localhost:8000/health
+curl -F "file=@samples/invoices/invoice-001.pdf" -H "X-User: you" http://localhost:8000/invoices
 npm run samples         # regenerate the synthetic invoices in samples/invoices
 ```
 
-Configuration comes from `INVOICE_INTAKE_*` environment variables (see [`backend/.env.example`](backend/.env.example)). The harness commands below cover the backend: `npm run lint` (ruff), `npm run typecheck` (mypy --strict), `npm run test` (pytest) and `npm run build` (compile check).
+Configuration comes from `INVOICE_INTAKE_*` environment variables (see [`backend/.env.example`](backend/.env.example)). The development database listens on port 5433 so it does not clash with a local PostgreSQL. The harness commands below cover the backend: `npm run lint` (ruff), `npm run typecheck` (mypy --strict), `npm run test` (pytest) and `npm run build` (compile check).
+
+`npm run test` needs Docker running: the database tests start their own `postgres:16-alpine` container and fail with a clear message when Docker is not available. To run everything else without Docker, from `backend/`: `python -m pytest -m "not postgres"`.
 
 ## Quick Start
 

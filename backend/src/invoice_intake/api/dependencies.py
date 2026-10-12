@@ -1,0 +1,34 @@
+"""Request-scoped dependencies. The composition root (``main.py``) decides what they return."""
+
+from collections.abc import Iterator
+from typing import Annotated
+
+from fastapi import Depends, Header, Request
+
+from invoice_intake.domain import Actor, ActorKind
+from invoice_intake.services.intake import IntakeService, IntakeServiceFactory
+
+MAX_ACTOR_NAME = 100
+
+
+def intake_service(request: Request) -> Iterator[IntakeService]:
+    """One service per request; its changes commit only if the request handler succeeds."""
+    factory: IntakeServiceFactory = request.app.state.intake_service
+    with factory() as service:
+        yield service
+
+
+def current_user(x_user: Annotated[str | None, Header()] = None) -> Actor:
+    """The person acting, from the ``X-User`` header.
+
+    A placeholder until authentication exists (a non-goal for the first version): the header
+    is trusted as-is and anyone without it is recorded as ``anonymous``.
+    """
+    name = (x_user or "").strip()[:MAX_ACTOR_NAME] or "anonymous"
+    return Actor(ActorKind.USER, name)
+
+
+# scope="function": the service context (and its commit) closes before the response is sent,
+# so a failed commit becomes an error response instead of a success the client already saw.
+IntakeServiceDep = Annotated[IntakeService, Depends(intake_service, scope="function")]
+CurrentUser = Annotated[Actor, Depends(current_user)]
