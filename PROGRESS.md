@@ -42,3 +42,14 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Files or artifacts updated: backend/, tools/, package.json, README.md, DECISIONS.md, docs/quality-document.md, docs/sprints/feat-001.md, .harness/manifest.json, .gitignore, PROGRESS.md.
 - Known risk or unresolved issue: layer 3b (e2e) is SKIP until feat-009/feat-011; docker is not available in the sandbox used so far, so the compose stack cannot be exercised there; mypy's cache needs a normal writable folder (it fails on the sandbox's mounted drive; set `MYPY_CACHE_DIR` there).
 - Next best step: activate feat-002 (invoice domain model and state machine), sprint contract first.
+
+### Session 003 — 2026-10-12
+
+- Goal: take the upstream e2e fix (ai-harness-framework D-022) and confirm it in this repo.
+- Completed: `harness-upgrade` applied (scripts/ refreshed; backup 2026-10-12T18-51-02-153Z); the adoption matrix now passes against this repo's customised `package.json` (all cells); D-004 follow-up updated.
+- Verification run: `node scripts/adoption-matrix.mjs` (all cells pass); `npm run check` and `npm run check-arch`.
+- Evidence captured: this entry.
+- Commits: see git log.
+- Files or artifacts updated: scripts/ (CORE, via upgrade), LICENSE (CORE, reset by upgrade to the framework's copyright line), DECISIONS.md, PROGRESS.md.
+- Known risk or unresolved issue: the e2e layer is still the SKIP placeholder (by design, D-004).
+- Next best step: feat-002 (invoice domain model and state machine), sprint contract first.

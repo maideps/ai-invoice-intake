@@ -72,4 +72,4 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: `npm run check` is green and the skipped layer is stated in its output.
 - Negative: layer 3b is unverified until real e2e tests exist; the feature gate must not be read as end-to-end evidence yet.
-- Follow-up: the upstream framework should not run its self-test as an adopter's default e2e layer (reported to the maintainer).
+- Follow-up (resolved 2026-10-12): the framework's matrix no longer breaks on customised scripts (ai-harness-framework D-022, commit 79bd6c4), and the matrix passes in this repo after `harness-upgrade`. The placeholder stays anyway: the default e2e layer tests the harness, not this product, so it is replaced only when real end-to-end tests exist.
