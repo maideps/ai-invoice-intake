@@ -1,0 +1,158 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 4 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+5 0 obj
+<<
+/Contents 9 0 R /MediaBox [ 0 0 595.2756 841.8898 ] /Parent 8 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/PageMode /UseNone /Pages 8 0 R /Type /Catalog
+>>
+endobj
+7 0 obj
+<<
+/Author (Fjordlys Systemer AS) /CreationDate (D:20000101000000+00'00') /Creator (anonymous) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Synthetic sample invoice, not a real document) /Title (FAKTURA 2026-06792) /Trapped /False
+>>
+endobj
+8 0 obj
+<<
+/Count 1 /Kids [ 5 0 R ] /Type /Pages
+>>
+endobj
+9 0 obj
+<<
+/Length 2874
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+.121569 .305882 .372549 rg
+n 0 761.8898 595.2756 80 re f*
+1 1 1 rg
+BT /F2 18 Tf 21.6 TL ET
+BT 1 0 0 1 40 793.8898 Tm (Fjordlys Systemer AS) Tj T* ET
+BT /F1 14 Tf 16.8 TL ET
+BT 1 0 0 1 489.9376 793.8898 Tm (FAKTURA) Tj T* ET
+.372549 .419608 .45098 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 743.8898 Tm (Strandkaien 22  |  5013 Bergen  |  Norge) Tj T* ET
+.827451 .827451 .827451 RG
+n 40 681.8898 165.0919 40 re S
+.372549 .419608 .45098 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 48 707.8898 Tm (FAKTURANR.) Tj T* ET
+0 0 0 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 48 691.8898 Tm (2026-06792) Tj T* ET
+.827451 .827451 .827451 RG
+n 215.0919 681.8898 165.0919 40 re S
+.372549 .419608 .45098 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 223.0919 707.8898 Tm (FAKTURADATO) Tj T* ET
+0 0 0 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 223.0919 691.8898 Tm (04.03.2026) Tj T* ET
+.827451 .827451 .827451 RG
+n 390.1837 681.8898 165.0919 40 re S
+.372549 .419608 .45098 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 398.1837 707.8898 Tm (FORFALLSDATO) Tj T* ET
+0 0 0 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 398.1837 691.8898 Tm (18.03.2026) Tj T* ET
+BT /F2 9 Tf 10.8 TL ET
+.372549 .419608 .45098 rg
+BT 1 0 0 1 40 646.8898 Tm (FAKTURERES TIL) Tj T* ET
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+BT 1 0 0 1 40 632.8898 Tm (Brightwater Studios, Rua das Flores 41, 4050-262 Porto) Tj T* ET
+.933333 .952941 .960784 rg
+n 40 585.8898 515.2756 18 re f*
+0 0 0 rg
+BT /F2 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 48 591.8898 Tm (Beskrivelse) Tj T* ET
+BT 1 0 0 1 330.8846 591.8898 Tm (Antall) Tj T* ET
+BT 1 0 0 1 403.1796 591.8898 Tm (Enhetspris) Tj T* ET
+BT 1 0 0 1 520.8846 591.8898 Tm (Bel\370p) Tj T* ET
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 48 573.8898 Tm (Oppsett og installasjon) Tj T* ET
+BT 1 0 0 1 346.7116 573.8898 Tm (14) Tj T* ET
+BT 1 0 0 1 415.3016 573.8898 Tm (1 003,26) Tj T* ET
+BT 1 0 0 1 505.0196 573.8898 Tm (14 045,64) Tj T* ET
+.933333 .952941 .960784 rg
+n 40 549.8898 515.2756 18 re f*
+0 0 0 rg
+BT 1 0 0 1 48 555.8898 Tm (Dokkingstasjon USB-C) Tj T* ET
+BT 1 0 0 1 346.7116 555.8898 Tm (11) Tj T* ET
+BT 1 0 0 1 415.3016 555.8898 Tm (2 620,71) Tj T* ET
+BT 1 0 0 1 505.0196 555.8898 Tm (28 827,81) Tj T* ET
+.121569 .305882 .372549 RG
+n 325.2756 471.8898 230 62 re S
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 335.2756 517.8898 Tm (Delsum) Tj T* ET
+BT 1 0 0 1 492.4651 517.8898 Tm (42 873,45 kr) Tj T* ET
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 335.2756 501.8898 Tm (MVA 25 %) Tj T* ET
+BT 1 0 0 1 492.4651 501.8898 Tm (10 718,36 kr) Tj T* ET
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 335.2756 485.8898 Tm (\305 betale) Tj T* ET
+BT 1 0 0 1 482.8946 485.8898 Tm (53 591,81 kr) Tj T* ET
+BT /F1 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 443.8898 Tm (Betaling innen 14 dager) Tj T* ET
+BT /F3 7.5 Tf 9 TL ET
+.372549 .419608 .45098 rg
+BT 1 0 0 1 171.544 28 Tm (SYNTHETIC SAMPLE - generated test data, not a real invoice - invoice-002) Tj T* ET
+ 
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000446 00000 n 
+0000000649 00000 n 
+0000000717 00000 n 
+0000001033 00000 n 
+0000001092 00000 n 
+trailer
+<<
+/ID 
+[<05adb7cf44fc874510243cb16f954fec><05adb7cf44fc874510243cb16f954fec>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 7 0 R
+/Root 6 0 R
+/Size 10
+>>
+startxref
+4017
+%%EOF

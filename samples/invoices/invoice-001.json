@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "file": "invoice-001.pdf",
+  "layout": "classic",
+  "fields": {
+    "vendor_name": "Maple Ridge Software Inc.",
+    "invoice_number": "MRS-04591",
+    "issue_date": "2026-06-01",
+    "due_date": "2026-07-16",
+    "currency": "CAD",
+    "subtotal": "5637.93",
+    "tax": "732.93",
+    "total": "6370.86",
+    "line_items": [
+      {
+        "description": "Team plan subscription, 10 seats",
+        "quantity": "12",
+        "unit_price": "359.71",
+        "amount": "4316.52"
+      },
+      {
+        "description": "Additional storage, 1 TB",
+        "quantity": "5",
+        "unit_price": "26.08",
+        "amount": "130.40"
+      },
+      {
+        "description": "Audit log retention add-on",
+        "quantity": "3",
+        "unit_price": "54.63",
+        "amount": "163.89"
+      },
+      {
+        "description": "Priority support add-on",
+        "quantity": "8",
+        "unit_price": "128.39",
+        "amount": "1027.12"
+      }
+    ]
+  }
+}

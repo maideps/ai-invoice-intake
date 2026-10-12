@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "file": "invoice-005.pdf",
+  "layout": "banner",
+  "fields": {
+    "vendor_name": "Bluebird Office Supply Co.",
+    "invoice_number": "INV-04269",
+    "issue_date": "2026-01-19",
+    "due_date": "2026-02-18",
+    "currency": "USD",
+    "subtotal": "1821.64",
+    "tax": "132.07",
+    "total": "1953.71",
+    "line_items": [
+      {
+        "description": "Whiteboard markers, assorted, pack of 12",
+        "quantity": "4",
+        "unit_price": "12.57",
+        "amount": "50.28"
+      },
+      {
+        "description": "Copy paper, A-grade, box of 10 reams",
+        "quantity": "2",
+        "unit_price": "40.43",
+        "amount": "80.86"
+      },
+      {
+        "description": "Monitor arm, dual",
+        "quantity": "12",
+        "unit_price": "106.89",
+        "amount": "1282.68"
+      },
+      {
+        "description": "Archive boxes, pack of 25",
+        "quantity": "14",
+        "unit_price": "29.13",
+        "amount": "407.82"
+      }
+    ]
+  }
+}

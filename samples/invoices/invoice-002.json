@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "file": "invoice-002.pdf",
+  "layout": "banner",
+  "fields": {
+    "vendor_name": "Fjordlys Systemer AS",
+    "invoice_number": "2026-06792",
+    "issue_date": "2026-03-04",
+    "due_date": "2026-03-18",
+    "currency": "NOK",
+    "subtotal": "42873.45",
+    "tax": "10718.36",
+    "total": "53591.81",
+    "line_items": [
+      {
+        "description": "Oppsett og installasjon",
+        "quantity": "14",
+        "unit_price": "1003.26",
+        "amount": "14045.64"
+      },
+      {
+        "description": "Dokkingstasjon USB-C",
+        "quantity": "11",
+        "unit_price": "2620.71",
+        "amount": "28827.81"
+      }
+    ]
+  }
+}

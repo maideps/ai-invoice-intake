@@ -61,7 +61,8 @@
     "help": "node scripts/framework-check.mjs help",
     "prepublishOnly": "npm run check && npm run check-arch",
     "setup:backend": "node tools/py.mjs setup",
-    "dev:backend": "node tools/py.mjs -m uvicorn invoice_intake.main:app --reload --port 8000"
+    "dev:backend": "node tools/py.mjs -m uvicorn invoice_intake.main:app --reload --port 8000",
+    "samples": "node tools/py.mjs tools/generate_samples.py"
   },
   "bin": {
     "create-harness": "scripts/create-harness.mjs",

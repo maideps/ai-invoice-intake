@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "file": "invoice-004.pdf",
+  "layout": "classic",
+  "fields": {
+    "vendor_name": "Harbor & Pine Logistics LLC",
+    "invoice_number": "HP-2026-9354",
+    "issue_date": "2026-06-30",
+    "due_date": "2026-07-15",
+    "currency": "USD",
+    "subtotal": "5009.31",
+    "tax": "0.00",
+    "total": "5009.31",
+    "line_items": [
+      {
+        "description": "Container drayage, 40ft",
+        "quantity": "5",
+        "unit_price": "947.25",
+        "amount": "4736.25"
+      },
+      {
+        "description": "Warehouse storage, per pallet-week",
+        "quantity": "18",
+        "unit_price": "15.17",
+        "amount": "273.06"
+      }
+    ]
+  }
+}

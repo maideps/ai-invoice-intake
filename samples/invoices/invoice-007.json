@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "file": "invoice-007.pdf",
+  "layout": "classic",
+  "fields": {
+    "vendor_name": "Atelier Lumière SARL",
+    "invoice_number": "F2026/3734",
+    "issue_date": "2026-02-14",
+    "due_date": "2026-03-16",
+    "currency": "EUR",
+    "subtotal": "3022.69",
+    "tax": "604.54",
+    "total": "3627.23",
+    "line_items": [
+      {
+        "description": "Conception graphique",
+        "quantity": "10",
+        "unit_price": "77.82",
+        "amount": "778.20"
+      },
+      {
+        "description": "Mise en page brochure",
+        "quantity": "1",
+        "unit_price": "63.11",
+        "amount": "63.11"
+      },
+      {
+        "description": "Retouche photo",
+        "quantity": "22.5",
+        "unit_price": "69.71",
+        "amount": "1568.48"
+      },
+      {
+        "description": "Direction artistique",
+        "quantity": "7.5",
+        "unit_price": "81.72",
+        "amount": "612.90"
+      }
+    ]
+  }
+}

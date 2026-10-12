@@ -8,7 +8,7 @@ A full-stack, human-in-the-loop invoice automation app. Invoices are uploaded, a
 
 ## Status
 
-Early development. The FastAPI service skeleton is in place (`GET /health`, typed settings, layered packages). See [`feature_list.json`](feature_list.json) for the feature plan and [`PROGRESS.md`](PROGRESS.md) for the current state.
+Early development. In place so far: the FastAPI service skeleton (`GET /health`, typed settings, layered packages), the invoice domain model and state machine, and a synthetic invoice generator with 12 committed samples in [`samples/`](samples/README.md). See [`feature_list.json`](feature_list.json) for the feature plan and [`PROGRESS.md`](PROGRESS.md) for the current state.
 
 ## Backend quick start
 
@@ -18,6 +18,7 @@ Requires Node.js >= 18 (the harness) and Python >= 3.10.
 npm run setup:backend   # creates backend/.venv and installs the backend with dev tools
 npm run dev:backend     # serves http://localhost:8000 (docs at /docs)
 curl http://localhost:8000/health
+npm run samples         # regenerate the synthetic invoices in samples/invoices
 ```
 
 Configuration comes from `INVOICE_INTAKE_*` environment variables (see [`backend/.env.example`](backend/.env.example)). The harness commands below cover the backend: `npm run lint` (ruff), `npm run typecheck` (mypy --strict), `npm run test` (pytest) and `npm run build` (compile check).

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "file": "invoice-008.pdf",
+  "layout": "banner",
+  "fields": {
+    "vendor_name": "Maple Ridge Software Inc.",
+    "invoice_number": "MRS-07422",
+    "issue_date": "2026-01-12",
+    "due_date": "2026-02-26",
+    "currency": "CAD",
+    "subtotal": "45.70",
+    "tax": "5.94",
+    "total": "51.64",
+    "line_items": [
+      {
+        "description": "Additional storage, 1 TB",
+        "quantity": "2",
+        "unit_price": "22.85",
+        "amount": "45.70"
+      }
+    ]
+  }
+}

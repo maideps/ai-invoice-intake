@@ -1,0 +1,151 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 4 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+5 0 obj
+<<
+/Contents 9 0 R /MediaBox [ 0 0 612 792 ] /Parent 8 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/PageMode /UseNone /Pages 8 0 R /Type /Catalog
+>>
+endobj
+7 0 obj
+<<
+/Author (Maple Ridge Software Inc.) /CreationDate (D:20000101000000+00'00') /Creator (anonymous) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Synthetic sample invoice, not a real document) /Title (INVOICE MRS-07422) /Trapped /False
+>>
+endobj
+8 0 obj
+<<
+/Count 1 /Kids [ 5 0 R ] /Type /Pages
+>>
+endobj
+9 0 obj
+<<
+/Length 2409
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+.121569 .305882 .372549 rg
+n 0 712 612 80 re f*
+1 1 1 rg
+BT /F2 18 Tf 21.6 TL ET
+BT 1 0 0 1 40 744 Tm (Maple Ridge Software Inc.) Tj T* ET
+BT /F1 14 Tf 16.8 TL ET
+BT 1 0 0 1 514.432 744 Tm (INVOICE) Tj T* ET
+.372549 .419608 .45098 rg
+BT /F1 8.5 Tf 10.2 TL ET
+BT 1 0 0 1 40 694 Tm (410 Queen Street West  |  Toronto, ON M5V 2A5  |  Canada) Tj T* ET
+.827451 .827451 .827451 RG
+n 40 632 170.6667 40 re S
+.372549 .419608 .45098 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 48 658 Tm (INVOICE NO.) Tj T* ET
+0 0 0 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 48 642 Tm (MRS-07422) Tj T* ET
+.827451 .827451 .827451 RG
+n 220.6667 632 170.6667 40 re S
+.372549 .419608 .45098 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 228.6667 658 Tm (INVOICE DATE) Tj T* ET
+0 0 0 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 228.6667 642 Tm (2026-01-12) Tj T* ET
+.827451 .827451 .827451 RG
+n 401.3333 632 170.6667 40 re S
+.372549 .419608 .45098 rg
+BT /F1 8 Tf 9.6 TL ET
+BT 1 0 0 1 409.3333 658 Tm (DUE DATE) Tj T* ET
+0 0 0 rg
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 409.3333 642 Tm (2026-02-26) Tj T* ET
+BT /F2 9 Tf 10.8 TL ET
+.372549 .419608 .45098 rg
+BT 1 0 0 1 40 597 Tm (BILL TO) Tj T* ET
+0 0 0 rg
+BT /F1 10 Tf 12 TL ET
+BT 1 0 0 1 40 583 Tm (Lindqvist & Ortega Trading, Harbour House, 3 Quay Street, Galway H91 X2Y5) Tj T* ET
+.933333 .952941 .960784 rg
+n 40 536 532 18 re f*
+0 0 0 rg
+BT /F2 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 48 542 Tm (Description) Tj T* ET
+BT 1 0 0 1 358.1635 542 Tm (Qty) Tj T* ET
+BT 1 0 0 1 425.186 542 Tm (Unit price) Tj T* ET
+BT 1 0 0 1 528.1185 542 Tm (Amount) Tj T* ET
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 48 524 Tm (Additional storage, 1 TB) Tj T* ET
+BT 1 0 0 1 368.718 524 Tm (2) Tj T* ET
+BT 1 0 0 1 445.231 524 Tm (22.85) Tj T* ET
+BT 1 0 0 1 540.231 524 Tm (45.70) Tj T* ET
+.121569 .305882 .372549 RG
+n 342 440 230 62 re S
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 352 486 Tm (Subtotal) Tj T* ET
+BT 1 0 0 1 519.7535 486 Tm (CA$45.70) Tj T* ET
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 352 470 Tm (HST 13%) Tj T* ET
+BT 1 0 0 1 525.0355 470 Tm (CA$5.94) Tj T* ET
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 352 454 Tm (Total due) Tj T* ET
+BT 1 0 0 1 512.478 454 Tm (CA$51.64) Tj T* ET
+BT /F1 9 Tf 10.8 TL ET
+BT 1 0 0 1 40 412 Tm (Payment terms: net 45 days) Tj T* ET
+BT /F3 7.5 Tf 9 TL ET
+.372549 .419608 .45098 rg
+BT 1 0 0 1 179.9062 28 Tm (SYNTHETIC SAMPLE - generated test data, not a real invoice - invoice-008) Tj T* ET
+ 
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000446 00000 n 
+0000000639 00000 n 
+0000000707 00000 n 
+0000001027 00000 n 
+0000001086 00000 n 
+trailer
+<<
+/ID 
+[<3228f1a8b678f93d2a10d965c69b32fe><3228f1a8b678f93d2a10d965c69b32fe>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 7 0 R
+/Root 6 0 R
+/Size 10
+>>
+startxref
+3546
+%%EOF

@@ -73,7 +73,7 @@ Product directories (declared in `.harness/manifest.json` as `productRoots`):
 
 - `backend/` — FastAPI service and worker (Python). Layers: `api/` (presentation), `services/` (application), `domain/` (entities, state machine, rules), `infrastructure/` (database, queue, extraction providers, webhook).
 - `frontend/` — React + TypeScript review dashboard.
-- `samples/` — synthetic invoices and the generator that produces them.
+- `samples/` — the committed synthetic invoices (PDF plus ground-truth JSON). The generator that produces them lives in `backend/tools/samplegen/` so the backend's ruff, mypy and pytest cover it; run it with `npm run samples` (D-006).
 - `docker-compose.yml` — local stack (API, worker, Postgres, Redis, frontend).
 
 Key design rules:

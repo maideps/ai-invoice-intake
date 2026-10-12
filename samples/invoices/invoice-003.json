@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "file": "invoice-003.pdf",
+  "layout": "compact",
+  "fields": {
+    "vendor_name": "Kestrel Analytik GmbH",
+    "invoice_number": "RE-20264113",
+    "issue_date": "2026-08-07",
+    "due_date": "2026-08-21",
+    "currency": "EUR",
+    "subtotal": "8982.56",
+    "tax": "1706.69",
+    "total": "10689.25",
+    "line_items": [
+      {
+        "description": "Schulung Berichtswesen",
+        "quantity": "23.5",
+        "unit_price": "107.19",
+        "amount": "2518.97"
+      },
+      {
+        "description": "Datenanalyse und Auswertung",
+        "quantity": "23",
+        "unit_price": "104.62",
+        "amount": "2406.26"
+      },
+      {
+        "description": "Workshop Dashboard-Konzeption",
+        "quantity": "23",
+        "unit_price": "123.69",
+        "amount": "2844.87"
+      },
+      {
+        "description": "Projektmanagement",
+        "quantity": "7.5",
+        "unit_price": "113.63",
+        "amount": "852.23"
+      },
+      {
+        "description": "Datenbereinigung",
+        "quantity": "4.5",
+        "unit_price": "80.05",
+        "amount": "360.23"
+      }
+    ]
+  }
+}

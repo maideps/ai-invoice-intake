@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "file": "invoice-012.pdf",
+  "layout": "compact",
+  "fields": {
+    "vendor_name": "Bluebird Office Supply Co.",
+    "invoice_number": "INV-03711",
+    "issue_date": "2026-04-09",
+    "due_date": "2026-05-09",
+    "currency": "USD",
+    "subtotal": "7278.51",
+    "tax": "527.69",
+    "total": "7806.20",
+    "line_items": [
+      {
+        "description": "Archive boxes, pack of 25",
+        "quantity": "9",
+        "unit_price": "27.43",
+        "amount": "246.87"
+      },
+      {
+        "description": "Toner cartridge, black, high yield",
+        "quantity": "9",
+        "unit_price": "100.43",
+        "amount": "903.87"
+      },
+      {
+        "description": "Ergonomic desk chair",
+        "quantity": "13",
+        "unit_price": "351.43",
+        "amount": "4568.59"
+      },
+      {
+        "description": "Monitor arm, dual",
+        "quantity": "14",
+        "unit_price": "98.50",
+        "amount": "1379.00"
+      },
+      {
+        "description": "Whiteboard markers, assorted, pack of 12",
+        "quantity": "13",
+        "unit_price": "13.86",
+        "amount": "180.18"
+      }
+    ]
+  }
+}

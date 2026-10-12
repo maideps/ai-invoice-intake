@@ -86,3 +86,17 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: adding a provider touches only infrastructure and settings; the default runs offline.
 - Negative: providers differ in document input, structured-output support and confidence signals, so each implementation must map its output into the same validated `ExtractionResult`, and each one needs its own tests.
+
+### D-006: Synthetic samples are generated deterministically and committed
+
+**Date:** 2026-10-12
+**Status:** accepted
+**Context:** feat-003 needs reproducible synthetic invoices (PDF plus ground truth). Later features use them: the fake extraction provider and its tests (feat-005), integration tests (feat-004) and the demo. A PDF normally carries a creation date, a random document id and zlib-compressed streams, and zlib output can differ between platforms and Python builds.
+**Decision:** The generator lives in `backend/tools/samplegen/` (entry point `backend/tools/generate_samples.py`, `npm run samples`), uses one `random.Random` per invoice seeded from `(seed, index)`, and builds the ground truth from the domain's `InvoiceFields` and `LineItem`. PDFs are written with ReportLab in invariant mode and without page compression; ReportLab is pinned exactly (4.5.1) as a dev dependency. The default set (seed 42, 12 invoices) is committed to `samples/invoices/`, `samples/.gitattributes` turns off line-ending conversion there, and a test fails when the committed files differ from a fresh run.
+**Alternatives considered:**
+- Generate samples on the fly in tests and the demo, commit nothing — Rejected: the demo, the docker stack and people browsing the repository need the files, and committing them makes any change in generator output visible in review.
+- Keep the generator in `samples/` as the architecture first said — Rejected: it would fall outside the backend's lint, type-check and test commands.
+- fpdf2 instead of ReportLab — no strong reason either way; ReportLab has a documented invariant mode for reproducible output.
+**Consequences:**
+- Positive: byte-identical output on every OS, proven by tests; ground truth is valid domain data by construction.
+- Negative: upgrading ReportLab (or changing the generator) means regenerating and re-committing the samples; uncompressed PDFs are larger (about 4-5 KB each, fine at this size).

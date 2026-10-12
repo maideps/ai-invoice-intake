@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "file": "invoice-010.pdf",
+  "layout": "classic",
+  "fields": {
+    "vendor_name": "Kestrel Analytik GmbH",
+    "invoice_number": "RE-20268145",
+    "issue_date": "2026-03-09",
+    "due_date": "2026-03-23",
+    "currency": "EUR",
+    "subtotal": "4722.25",
+    "tax": "897.23",
+    "total": "5619.48",
+    "line_items": [
+      {
+        "description": "Datenbereinigung",
+        "quantity": "15",
+        "unit_price": "73.41",
+        "amount": "1101.15"
+      },
+      {
+        "description": "Datenanalyse und Auswertung",
+        "quantity": "23",
+        "unit_price": "98.89",
+        "amount": "2274.47"
+      },
+      {
+        "description": "Workshop Dashboard-Konzeption",
+        "quantity": "9.5",
+        "unit_price": "141.75",
+        "amount": "1346.63"
+      }
+    ]
+  }
+}

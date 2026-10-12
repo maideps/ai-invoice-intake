@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "file": "invoice-009.pdf",
+  "layout": "compact",
+  "fields": {
+    "vendor_name": "Fjordlys Systemer AS",
+    "invoice_number": "2026-03237",
+    "issue_date": "2026-06-04",
+    "due_date": "2026-06-18",
+    "currency": "NOK",
+    "subtotal": "19401.30",
+    "tax": "4850.33",
+    "total": "24251.63",
+    "line_items": [
+      {
+        "description": "Oppsett og installasjon",
+        "quantity": "15",
+        "unit_price": "1293.42",
+        "amount": "19401.30"
+      }
+    ]
+  }
+}

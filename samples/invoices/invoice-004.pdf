@@ -1,0 +1,141 @@
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R /F3 4 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding /Name /F3 /Subtype /Type1 /Type /Font
+>>
+endobj
+5 0 obj
+<<
+/Contents 9 0 R /MediaBox [ 0 0 612 792 ] /Parent 8 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+6 0 obj
+<<
+/PageMode /UseNone /Pages 8 0 R /Type /Catalog
+>>
+endobj
+7 0 obj
+<<
+/Author (Harbor & Pine Logistics LLC) /CreationDate (D:20000101000000+00'00') /Creator (anonymous) /Keywords () /ModDate (D:20000101000000+00'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (Synthetic sample invoice, not a real document) /Title (INVOICE HP-2026-9354) /Trapped /False
+>>
+endobj
+8 0 obj
+<<
+/Count 1 /Kids [ 5 0 R ] /Type /Pages
+>>
+endobj
+9 0 obj
+<<
+/Length 2322
+>>
+stream
+1 0 0 1 0 0 cm  BT /F1 12 Tf 14.4 TL ET
+BT /F2 16 Tf 19.2 TL ET
+BT 1 0 0 1 50 732 Tm (Harbor & Pine Logistics LLC) Tj T* ET
+BT /F1 9 Tf 10.8 TL ET
+BT 1 0 0 1 50 716 Tm (77 Wharf Road, Suite 300) Tj T* ET
+BT 1 0 0 1 50 704 Tm (Savannah, GA 31401) Tj T* ET
+BT 1 0 0 1 50 692 Tm (United States) Tj T* ET
+BT /F2 22 Tf 26.4 TL ET
+BT 1 0 0 1 471.536 732 Tm (INVOICE) Tj T* ET
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 362 709 Tm (Invoice no.) Tj T* ET
+BT /F2 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 500.2215 709 Tm (HP-2026-9354) Tj T* ET
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 362 694 Tm (Invoice date) Tj T* ET
+BT /F2 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 500.212 694 Tm (June 30, 2026) Tj T* ET
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 362 679 Tm (Due date) Tj T* ET
+BT /F2 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 503.3755 679 Tm (July 15, 2026) Tj T* ET
+BT /F2 10 Tf 12 TL ET
+BT 1 0 0 1 50 617 Tm (Bill to) Tj T* ET
+BT /F1 10 Tf 12 TL ET
+BT 1 0 0 1 50 604 Tm (Northgate Community Clinic) Tj T* ET
+BT 1 0 0 1 50 591 Tm (250 Elm Street) Tj T* ET
+BT 1 0 0 1 50 578 Tm (Burlington, VT 05401) Tj T* ET
+BT /F2 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 50 527 Tm (Description) Tj T* ET
+BT 1 0 0 1 356.1635 527 Tm (Qty) Tj T* ET
+BT 1 0 0 1 423.186 527 Tm (Unit price) Tj T* ET
+BT 1 0 0 1 526.1185 527 Tm (Amount) Tj T* ET
+.8 w
+n 50 521 m 562 521 l S
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 50 505 Tm (Container drayage, 40ft) Tj T* ET
+BT 1 0 0 1 366.718 505 Tm (5) Tj T* ET
+BT 1 0 0 1 437.949 505 Tm (947.25) Tj T* ET
+BT 1 0 0 1 525.026 505 Tm (4,736.25) Tj T* ET
+BT 1 0 0 1 50 487 Tm (Warehouse storage, per pallet-week) Tj T* ET
+BT 1 0 0 1 361.436 487 Tm (18) Tj T* ET
+BT 1 0 0 1 443.231 487 Tm (15.17) Tj T* ET
+BT 1 0 0 1 532.949 487 Tm (273.06) Tj T* ET
+n 50 481 m 562 481 l S
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 362 449 Tm (Subtotal) Tj T* ET
+BT 1 0 0 1 519.744 449 Tm ($5,009.31) Tj T* ET
+BT /F1 9.5 Tf 11.4 TL ET
+BT 1 0 0 1 362 433 Tm (Tax 0%) Tj T* ET
+BT 1 0 0 1 538.231 433 Tm ($0.00) Tj T* ET
+BT /F2 11 Tf 13.2 TL ET
+BT 1 0 0 1 362 417 Tm (Total due) Tj T* ET
+BT 1 0 0 1 513.072 417 Tm ($5,009.31) Tj T* ET
+BT /F1 9 Tf 10.8 TL ET
+.372549 .419608 .45098 rg
+BT 1 0 0 1 50 374 Tm (Payment terms: net 15 days) Tj T* ET
+0 0 0 rg
+BT /F3 7.5 Tf 9 TL ET
+.372549 .419608 .45098 rg
+BT 1 0 0 1 179.9062 28 Tm (SYNTHETIC SAMPLE - generated test data, not a real invoice - invoice-004) Tj T* ET
+ 
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000061 00000 n 
+0000000112 00000 n 
+0000000219 00000 n 
+0000000331 00000 n 
+0000000446 00000 n 
+0000000639 00000 n 
+0000000707 00000 n 
+0000001032 00000 n 
+0000001091 00000 n 
+trailer
+<<
+/ID 
+[<5184f33556988ca589bf54c5ee971d19><5184f33556988ca589bf54c5ee971d19>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 7 0 R
+/Root 6 0 R
+/Size 10
+>>
+startxref
+3464
+%%EOF

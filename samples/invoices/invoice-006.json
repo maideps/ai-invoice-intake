@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "file": "invoice-006.pdf",
+  "layout": "compact",
+  "fields": {
+    "vendor_name": "Thames Valley Print Ltd",
+    "invoice_number": "TVP001446",
+    "issue_date": "2026-09-11",
+    "due_date": "2026-10-11",
+    "currency": "GBP",
+    "subtotal": "3124.93",
+    "tax": "624.99",
+    "total": "3749.92",
+    "line_items": [
+      {
+        "description": "Business cards, 400gsm, box of 500",
+        "quantity": "20",
+        "unit_price": "40.42",
+        "amount": "808.40"
+      },
+      {
+        "description": "Letterhead, 120gsm, 500 sheets",
+        "quantity": "19",
+        "unit_price": "79.82",
+        "amount": "1516.58"
+      },
+      {
+        "description": "Saddle-stitched brochure, 16 pages",
+        "quantity": "2",
+        "unit_price": "2.38",
+        "amount": "4.76"
+      },
+      {
+        "description": "Roller banner, 850 x 2000 mm",
+        "quantity": "11",
+        "unit_price": "72.29",
+        "amount": "795.19"
+      }
+    ]
+  }
+}

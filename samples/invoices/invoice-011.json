@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "file": "invoice-011.pdf",
+  "layout": "banner",
+  "fields": {
+    "vendor_name": "Harbor & Pine Logistics LLC",
+    "invoice_number": "HP-2026-7538",
+    "issue_date": "2026-04-28",
+    "due_date": "2026-05-13",
+    "currency": "USD",
+    "subtotal": "2141.94",
+    "tax": "0.00",
+    "total": "2141.94",
+    "line_items": [
+      {
+        "description": "Pallet freight, Savannah to Atlanta",
+        "quantity": "5",
+        "unit_price": "275.46",
+        "amount": "1377.30"
+      },
+      {
+        "description": "Warehouse storage, per pallet-week",
+        "quantity": "6",
+        "unit_price": "14.25",
+        "amount": "85.50"
+      },
+      {
+        "description": "Liftgate delivery surcharge",
+        "quantity": "14",
+        "unit_price": "48.51",
+        "amount": "679.14"
+      }
+    ]
+  }
+}

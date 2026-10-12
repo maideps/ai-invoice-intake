@@ -18,7 +18,10 @@ dev = [
     "httpx2>=2.0",
     "mypy>=1.11",
     "pytest>=8.0",
+    # Pinned exactly: the committed sample PDFs are byte-compared against this version's output (D-006).
+    "reportlab==4.5.1",
     "ruff>=0.6",
+    "types-reportlab==4.5.1.20260827",
 ]
 
 [tool.setuptools.packages.find]
