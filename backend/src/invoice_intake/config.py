@@ -1,10 +1,13 @@
 """Typed application settings, read from ``INVOICE_INTAKE_*`` environment variables."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class Settings(BaseSettings):
@@ -24,6 +27,12 @@ class Settings(BaseSettings):
         "postgresql+psycopg://invoice_intake:invoice_intake@localhost:5433/invoice_intake"
     )
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, gt=0)
+    # AI extraction (D-005). The default needs no key and no network.
+    extraction_provider: str = "fake"
+    openai_api_key: SecretStr | None = None
+    openai_model: str = "gpt-5.4-mini"
+    openai_timeout_seconds: float = Field(default=60.0, gt=0)
+    fake_samples_dir: Path = REPO_ROOT / "samples" / "invoices"
 
 
 @lru_cache

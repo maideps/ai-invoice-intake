@@ -155,8 +155,9 @@ def _event_row(event: AuditEvent) -> AuditEventRow:
         actor_name=event.actor.name,
         action=event.action.value,
         from_status=event.from_status.value if event.from_status else None,
-        to_status=event.to_status.value,
+        to_status=event.to_status.value if event.to_status else None,
         reason=event.reason,
+        details=dict(event.details) if event.details is not None else None,
     )
 
 
@@ -168,8 +169,9 @@ def _event_from_row(row: AuditEventRow) -> AuditEvent:
         actor=Actor(ActorKind(row.actor_kind), row.actor_name),
         action=AuditAction(row.action),
         from_status=InvoiceStatus(row.from_status) if row.from_status else None,
-        to_status=InvoiceStatus(row.to_status),
+        to_status=InvoiceStatus(row.to_status) if row.to_status else None,
         reason=row.reason,
+        details=row.details,
     )
 
 

@@ -7,9 +7,13 @@ from alembic.migration import MigrationContext
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 
+from invoice_intake.domain import Document, InvoiceStatus
+from invoice_intake.infrastructure.database import make_engine, make_session_factory
+from invoice_intake.infrastructure.repository import SqlInvoiceRepository
 from invoice_intake.infrastructure.tables import Base
 
 from .conftest import alembic_config
+from .domain_helpers import at, invoice_in
 
 pytestmark = pytest.mark.postgres
 
@@ -65,3 +69,29 @@ def test_models_match_the_migrated_schema(migrated_url: str) -> None:
         engine.dispose()
 
     assert differences == []
+
+
+def test_downgrade_below_0002_refuses_to_drop_extraction_events(clean_database_url: str) -> None:
+    config = alembic_config(clean_database_url)
+    command.upgrade(config, "head")
+    invoice = invoice_in(InvoiceStatus.EXTRACTING)
+    invoice.record_rejected_extraction(provider="p", model="m", output="x", errors=["e"], at=at(9))
+    engine = make_engine(clean_database_url)
+    try:
+        with make_session_factory(engine).begin() as session:
+            SqlInvoiceRepository(session).add(invoice, Document("application/pdf", b"%PDF-1"))
+    finally:
+        engine.dispose()
+
+    with pytest.raises(RuntimeError, match="1 extraction audit event"):
+        command.downgrade(config, "0001")
+
+    assert _columns(clean_database_url, "audit_events") >= {"details"}  # still at 0002
+
+
+def _columns(url: str, table: str) -> set[str]:
+    engine = create_engine(url)
+    try:
+        return {column["name"] for column in inspect(engine).get_columns(table)}
+    finally:
+        engine.dispose()

@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import Depends, Header, Request
 
 from invoice_intake.domain import Actor, ActorKind
+from invoice_intake.services.extraction import ExtractionService, ExtractionServiceFactory
 from invoice_intake.services.intake import IntakeService, IntakeServiceFactory
 
 MAX_ACTOR_NAME = 100
@@ -14,6 +15,12 @@ MAX_ACTOR_NAME = 100
 def intake_service(request: Request) -> Iterator[IntakeService]:
     """One service per request; its changes commit only if the request handler succeeds."""
     factory: IntakeServiceFactory = request.app.state.intake_service
+    with factory() as service:
+        yield service
+
+
+def extraction_service(request: Request) -> Iterator[ExtractionService]:
+    factory: ExtractionServiceFactory = request.app.state.extraction_service
     with factory() as service:
         yield service
 
@@ -32,3 +39,4 @@ def current_user(x_user: Annotated[str | None, Header()] = None) -> Actor:
 # so a failed commit becomes an error response instead of a success the client already saw.
 IntakeServiceDep = Annotated[IntakeService, Depends(intake_service, scope="function")]
 CurrentUser = Annotated[Actor, Depends(current_user)]
+ExtractionServiceDep = Annotated[ExtractionService, Depends(extraction_service, scope="function")]

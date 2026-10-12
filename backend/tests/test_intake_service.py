@@ -37,7 +37,8 @@ def test_upload_stores_an_uploaded_invoice_with_its_document() -> None:
     assert invoice.filename == "acme.pdf"
     assert invoice.uploaded_at == at(0)
     assert invoice.events[0].actor == USER
-    assert repository.get(invoice.id) is invoice
+    stored = repository.get(invoice.id)
+    assert stored is not None and stored.events == invoice.events
     document = service.document(invoice.id)
     assert (document.content_type, document.content) == ("application/pdf", PDF)
 

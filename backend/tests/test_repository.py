@@ -7,6 +7,7 @@ from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session, sessionmaker
 
 from invoice_intake.domain import (
+    FIELD_NAMES,
     ActorKind,
     ConcurrentModificationError,
     Document,
@@ -208,3 +209,47 @@ def test_database_rejects_values_outside_the_enums(sessions: sessionmaker[Sessio
 
     with pytest.raises(DBAPIError, match="ck_invoices_status"), sessions.begin() as session:
         session.execute(text("UPDATE invoices SET status = 'paid'"))
+
+
+def test_extraction_events_round_trip_through_jsonb(sessions: sessionmaker[Session]) -> None:
+    invoice = invoice_in(S.EXTRACTING)
+    invoice.record_rejected_extraction(
+        provider="openai",
+        model="m",
+        output={"fields": None, "note": "ünïcode ✓", "scores": [0.1, 1, None, True]},
+        errors=["output is missing confidence"],
+        at=at(10),
+    )
+    invoice.record_extraction(
+        provider="fake",
+        model="ground-truth",
+        fields=FIELDS,
+        confidence={name: 0.87 for name in FIELD_NAMES},
+        at=at(11),
+    )
+    invoice.transition_to(S.NEEDS_REVIEW, actor=ACTORS[ActorKind.SYSTEM], at=at(12))
+    _store(sessions, invoice)
+
+    loaded = _load(sessions, invoice)
+
+    assert loaded.events == invoice.events
+    assert loaded.extraction_confidence == {name: 0.87 for name in FIELD_NAMES}
+    assert loaded.status is S.NEEDS_REVIEW
+
+
+def test_database_requires_status_columns_only_for_status_changes(
+    sessions: sessionmaker[Session],
+) -> None:
+    invoice = invoice_in(S.UPLOADED)
+    _store(sessions, invoice)
+    insert = text(
+        "INSERT INTO audit_events (invoice_id, sequence, occurred_at, actor_kind, actor_name, "
+        "action, from_status, to_status) VALUES (:id, 2, now(), 'ai', 'x', :action, NULL, :to)"
+    )
+
+    for action, to_status in (("extraction_recorded", "uploaded"), ("status_changed", None)):
+        with (
+            pytest.raises(DBAPIError, match="ck_audit_events_status_change"),
+            sessions.begin() as session,
+        ):
+            session.execute(insert, {"id": invoice.id, "action": action, "to": to_status})

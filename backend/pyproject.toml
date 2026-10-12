@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 dependencies = [
     "alembic>=1.13",
     "fastapi>=0.121",  # Depends(scope=...)
+    "openai>=1.66",  # Responses API with structured outputs and file inputs
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.5",
     "python-multipart>=0.0.9",

@@ -1,13 +1,15 @@
 """The invoice entity, its extracted fields and line items."""
 
+import json
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID, uuid4
 
-from .actors import Actor
+from .actors import Actor, ActorKind
 from .audit import AuditAction, AuditEvent, require_aware
 from .errors import (
     ActorNotPermittedError,
@@ -18,6 +20,13 @@ from .errors import (
 from .status import TRANSITIONS, InvoiceStatus
 
 _CURRENCY = re.compile(r"^[A-Z]{3}$")
+MAX_RECORDED_OUTPUT_CHARS = 20_000
+
+# Audit actions that do not change status: the status they require and who may record them.
+_NOTE_RULES: dict[AuditAction, tuple[InvoiceStatus, ActorKind]] = {
+    AuditAction.EXTRACTION_RECORDED: (InvoiceStatus.EXTRACTING, ActorKind.AI),
+    AuditAction.EXTRACTION_REJECTED: (InvoiceStatus.EXTRACTING, ActorKind.AI),
+}
 
 
 def _require_amount(value: Decimal, field: str) -> None:
@@ -77,6 +86,32 @@ class InvoiceFields:
                 _require_amount(value, field)
         if self.issue_date and self.due_date and self.due_date < self.issue_date:
             raise InvalidInvoiceDataError("due_date must not be before issue_date")
+
+    def to_json(self) -> dict[str, Any]:
+        """JSON form: decimals as strings, dates as ISO strings (the extraction output format)."""
+
+        def text(value: object) -> str | None:
+            return None if value is None else str(value)
+
+        return {
+            "vendor_name": self.vendor_name,
+            "invoice_number": self.invoice_number,
+            "issue_date": self.issue_date.isoformat() if self.issue_date else None,
+            "due_date": self.due_date.isoformat() if self.due_date else None,
+            "currency": self.currency,
+            "subtotal": text(self.subtotal),
+            "tax": text(self.tax),
+            "total": text(self.total),
+            "line_items": [
+                {
+                    "description": item.description,
+                    "quantity": str(item.quantity),
+                    "unit_price": str(item.unit_price),
+                    "amount": str(item.amount),
+                }
+                for item in self.line_items
+            ],
+        }
 
 
 class Invoice:
@@ -139,9 +174,23 @@ class Invoice:
             raise InvalidInvoiceDataError("the first audit event must be the upload")
         for event in events[1:]:
             try:
-                replayed = invoice.transition_to(
-                    event.to_status, actor=event.actor, at=event.occurred_at, reason=event.reason
-                )
+                if event.action is AuditAction.STATUS_CHANGED:
+                    assert event.to_status is not None  # guaranteed by AuditEvent
+                    replayed = invoice.transition_to(
+                        event.to_status,
+                        actor=event.actor,
+                        at=event.occurred_at,
+                        reason=event.reason,
+                    )
+                else:
+                    # Field values come from storage (they may have been edited since); the
+                    # replay only checks that the note was allowed when it was written.
+                    replayed = invoice._note(
+                        event.action,
+                        actor=event.actor,
+                        at=event.occurred_at,
+                        details=event.details,
+                    )
             except DomainError as error:
                 raise InvalidInvoiceDataError(
                     f"stored audit event {event.sequence} breaks the lifecycle: {error}"
@@ -176,6 +225,89 @@ class Invoice:
     def events(self) -> tuple[AuditEvent, ...]:
         """The audit trail, oldest first."""
         return tuple(self._events)
+
+    @property
+    def extraction_confidence(self) -> dict[str, float] | None:
+        """Per-field confidence of the latest accepted extraction, if any."""
+        for event in reversed(self._events):
+            if event.action is AuditAction.EXTRACTION_RECORDED and event.details:
+                return dict(event.details["confidence"])
+        return None
+
+    def record_extraction(
+        self,
+        *,
+        provider: str,
+        model: str,
+        fields: InvoiceFields,
+        confidence: Mapping[str, float],
+        at: datetime,
+    ) -> AuditEvent:
+        """Take accepted AI output as the invoice's fields, keeping the output in the trail."""
+        event = self._note(
+            AuditAction.EXTRACTION_RECORDED,
+            actor=_model_actor(provider, model),
+            at=at,
+            details={
+                "provider": provider,
+                "model": model,
+                "fields": fields.to_json(),
+                "confidence": dict(confidence),
+            },
+        )
+        self._fields = fields
+        return event
+
+    def record_rejected_extraction(
+        self, *, provider: str, model: str, output: object, errors: Sequence[str], at: datetime
+    ) -> AuditEvent:
+        """Keep AI output that failed validation, and why, without changing the fields."""
+        return self._note(
+            AuditAction.EXTRACTION_REJECTED,
+            actor=_model_actor(provider, model),
+            at=at,
+            details={
+                "provider": provider,
+                "model": model,
+                "errors": list(errors),
+                "output": _bounded(output),
+            },
+        )
+
+    def _note(
+        self,
+        action: AuditAction,
+        *,
+        actor: Actor,
+        at: datetime,
+        details: Mapping[str, Any] | None,
+    ) -> AuditEvent:
+        """Append an event that records something without changing status."""
+        required_status, required_kind = _NOTE_RULES[action]
+        if self._status is not required_status:
+            raise InvalidTransitionError(
+                f"cannot record {action.value} while the invoice is {self._status.value}"
+            )
+        if actor.kind is not required_kind:
+            raise ActorNotPermittedError(
+                f"only a {required_kind.value} actor may record {action.value}, "
+                f"not a {actor.kind.value} actor"
+            )
+        require_aware(at, "at")
+        if at < self._events[-1].occurred_at:
+            raise InvalidInvoiceDataError("audit events must not go back in time")
+        event = AuditEvent(
+            invoice_id=self._id,
+            sequence=len(self._events) + 1,
+            occurred_at=at,
+            actor=actor,
+            action=action,
+            from_status=None,
+            to_status=None,
+            details=details,
+        )
+        self._events.append(event)
+        return event
 
     def transition_to(
         self,
@@ -220,3 +352,19 @@ class Invoice:
 
     def __repr__(self) -> str:
         return f"Invoice(id={self._id}, filename={self._filename!r}, status={self._status.value})"
+
+
+def _model_actor(provider: str, model: str) -> Actor:
+    return Actor(ActorKind.AI, f"{provider}:{model}")
+
+
+def _bounded(output: object) -> object:
+    """The output itself when it is small JSON; otherwise a truncated text form of it."""
+    try:
+        text = json.dumps(output, allow_nan=False)
+    except (TypeError, ValueError):
+        text = None
+    if text is not None and len(text) <= MAX_RECORDED_OUTPUT_CHARS:
+        return output
+    raw = output if isinstance(output, str) else (text or repr(output))
+    return {"truncated": raw[:MAX_RECORDED_OUTPUT_CHARS], "original_length": len(raw)}

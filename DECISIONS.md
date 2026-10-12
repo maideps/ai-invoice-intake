@@ -77,7 +77,7 @@ This file records significant architectural decisions, their context, alternativ
 ### D-005: The AI extraction provider is chosen by configuration
 
 **Date:** 2026-10-12
-**Status:** accepted
+**Status:** accepted (implemented in feat-005; see D-008)
 **Context:** D-002 put AI extraction behind an interface but named OpenAI as the only real implementation. The author wants to be able to run the pipeline on other providers (for example Anthropic, Gemini or a local model) without touching the worker, services or review flow.
 **Decision:** The `INVOICE_INTAKE_EXTRACTION_PROVIDER` setting names the provider (`openai`, `fake`, and later others). One factory in the infrastructure layer maps that name to an implementation of the domain's `ExtractionProvider` interface; nothing else imports a concrete provider. Each provider reads its own API key and model settings. The default is `fake`, so a fresh clone, the tests and CI run without an API key or network access. An unknown name or a missing key for the chosen provider fails at startup, not on the first invoice. feat-005 ships `openai` and `fake`; each extra provider is a new class plus a factory entry.
 **Alternatives considered:**
@@ -122,3 +122,26 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: history cannot be rewritten even with direct SQL; persistence is tested against the real database engine; the API and services can be tested with an in-memory repository.
 - Negative: `npm run check` needs Docker; the first run pulls the image; listing loads each page's invoices with their events (two extra queries per page, fine at this scale).
+
+### D-008: Every AI output is validated in one place and kept in the audit trail
+
+**Date:** 2026-10-12
+**Status:** accepted
+**Context:** feat-005 adds AI extraction. The product promises that AI output is only a draft and that the audit log shows "model output, confidence, edits, who decided what". Providers differ (D-005), and real models sometimes return malformed or partial output. Tests must never call a real model.
+**Decision:**
+- The domain owns the output contract: a strict JSON schema with all fields required and nullable, plus a per-field confidence from 0 to 1. `parse_extraction` validates provider output against it and reports every problem at once. Providers only return raw output, so all of them share one validation path.
+- Audit events gain a JSON `details` payload. Status columns are now used only for `status_changed`, and a database check enforces that.
+- New actions: `extraction_recorded` (the accepted output and its confidence) and `extraction_rejected` (the output, cut to 20,000 characters, and the errors). Both are allowed only while `extracting` and only for an `ai` actor named `provider:model`.
+- Rejected output leaves the invoice in `extracting` so a retry can continue (feat-007). A provider failure records nothing and rolls back.
+- `fake` provider: it recognises a document by SHA-256 among the committed samples and returns their ground truth with stable, varied confidence. Unknown documents get empty fields and zero confidence.
+- `openai` provider: Responses API with a strict `json_schema` format and `store=False`. The document is sent inline (PDF as `input_file`, images as `input_image`). The default model is `gpt-5.4-mini`, set by `INVOICE_INTAKE_OPENAI_MODEL`. Its confidence is the model's own estimate.
+- Migration 0002 adds the column and the checks. Its downgrade refuses while extraction events exist, because the trail is append-only.
+- `POST /invoices/{id}/extract` runs extraction on request until the worker (feat-007) does it automatically.
+**Alternatives considered:**
+- Let each provider validate its own output — Rejected: rules would drift between providers, and rejections would not be recorded the same way.
+- Drop invalid output after logging it — Rejected: the audit log is the record of what the model said; a rejected answer is evidence too.
+- A separate `extractions` table — Rejected for now: the audit trail already orders events, holds the actor and is append-only; a separate table would duplicate that. Revisit if outputs need querying across invoices.
+- Per-line-item confidence — Rejected for now: one value for the whole table keeps the contract small; the review UI can still flag the table.
+**Consequences:**
+- Positive: one place decides what valid output is; every model answer is kept, accepted or not; the default setup runs offline.
+- Negative: confidence from real models is not calibrated, so the UI must present it as a hint; the default model name will age (it is a setting); audit events now carry two shapes (status change or note), checked in the domain and the database.

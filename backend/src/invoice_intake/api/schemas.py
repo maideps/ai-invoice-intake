@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from pydantic import BaseModel, PlainSerializer
@@ -38,8 +38,9 @@ class AuditEventOut(BaseModel):
     actor_name: str
     action: str
     from_status: InvoiceStatus | None
-    to_status: InvoiceStatus
+    to_status: InvoiceStatus | None
     reason: str | None
+    details: dict[str, Any] | None
 
     @classmethod
     def of(cls, event: AuditEvent) -> "AuditEventOut":
@@ -52,6 +53,7 @@ class AuditEventOut(BaseModel):
             from_status=event.from_status,
             to_status=event.to_status,
             reason=event.reason,
+            details=dict(event.details) if event.details is not None else None,
         )
 
 
@@ -83,6 +85,7 @@ class InvoiceOut(BaseModel):
     status: InvoiceStatus
     uploaded_at: datetime
     fields: FieldsOut
+    confidence: dict[str, float] | None  # per field, from the latest accepted extraction
     events: list[AuditEventOut]
 
     @classmethod
@@ -112,6 +115,7 @@ class InvoiceOut(BaseModel):
                     for item in fields.line_items
                 ],
             ),
+            confidence=invoice.extraction_confidence,
             events=[AuditEventOut.of(event) for event in invoice.events],
         )
 
@@ -130,3 +134,9 @@ class InvoicePageOut(BaseModel):
             limit=limit,
             offset=offset,
         )
+
+
+class ExtractionOut(BaseModel):
+    accepted: bool
+    errors: list[str]
+    invoice: InvoiceOut

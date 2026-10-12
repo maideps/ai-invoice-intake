@@ -7,6 +7,7 @@ they were stored with. Enum-like columns are text with CHECK constraints.
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -24,6 +25,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from invoice_intake.domain import ActorKind, AuditAction, InvoiceStatus
@@ -100,6 +102,12 @@ class AuditEventRow(Base):
         CheckConstraint(_one_of("actor_kind", ACTOR_KINDS), name="actor_kind"),
         CheckConstraint(_one_of("action", ACTIONS), name="action"),
         CheckConstraint(_one_of("to_status", STATUSES), name="to_status"),
+        # Status columns are filled exactly for status changes (see migration 0002).
+        CheckConstraint(
+            "(action = 'status_changed') = (to_status IS NOT NULL) "
+            "AND (action = 'status_changed' OR from_status IS NULL)",
+            name="status_change",
+        ),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
@@ -110,8 +118,9 @@ class AuditEventRow(Base):
     actor_name: Mapped[str] = mapped_column(Text)
     action: Mapped[str] = mapped_column(String(40))
     from_status: Mapped[str | None] = mapped_column(String(20))
-    to_status: Mapped[str] = mapped_column(String(20))
+    to_status: Mapped[str | None] = mapped_column(String(20))
     reason: Mapped[str | None] = mapped_column(Text)
+    details: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
 
 
 class DocumentRow(Base):
