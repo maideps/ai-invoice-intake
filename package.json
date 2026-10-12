@@ -1,0 +1,75 @@
+{
+  "name": "@maidelinps/ai-harness-framework",
+  "version": "0.5.0",
+  "description": "A general-purpose AI agent harness framework for building reliable, predictable multi-session engineering workflows",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maideps/ai-harness-framework.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "codex.md",
+    "GEMINI.md",
+    "Makefile",
+    "init.sh",
+    "scripts/",
+    "skills/",
+    "templates/",
+    "docs/",
+    "LICENSE",
+    ".nvmrc",
+    ".harness/manifest.json",
+    ".harness/arch-rules.json",
+    "README.md"
+  ],
+  "scripts": {
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run e2e",
+    "lint": "node scripts/framework-check.mjs lint && node tools/py.mjs -m ruff check . && node tools/py.mjs -m ruff format --check .",
+    "typecheck": "node scripts/framework-check.mjs typecheck && node tools/py.mjs -m mypy",
+    "test": "node scripts/framework-check.mjs test && node tools/py.mjs -m pytest -q",
+    "build": "node scripts/framework-check.mjs build && node tools/py.mjs -m compileall -q src",
+    "e2e": "node tools/skip.mjs \"no end-to-end tests yet (planned: feat-009 and feat-011)\"",
+    "dev": "node scripts/framework-check.mjs dev",
+    "check-arch": "node scripts/framework-check.mjs check-arch",
+    "verify-feature": "node scripts/framework-check.mjs verify-feature",
+    "verify-all": "node scripts/framework-check.mjs verify-all",
+    "lane-new": "node scripts/framework-check.mjs lane-new",
+    "lane-list": "node scripts/framework-check.mjs lane-list",
+    "lane-land": "node scripts/framework-check.mjs lane-land",
+    "lane-drop": "node scripts/framework-check.mjs lane-drop",
+    "migrate-feature-state": "node scripts/framework-check.mjs migrate-feature-state",
+    "add-feature": "node scripts/framework-check.mjs add-feature",
+    "vcr": "npm run check && npm run check-arch && node scripts/framework-check.mjs record-trail vcr",
+    "session-start": "node scripts/framework-check.mjs session-trace start",
+    "session-end": "node scripts/framework-check.mjs session-trace end",
+    "clean-check": "node scripts/framework-check.mjs clean-state-check",
+    "create-harness": "node scripts/create-harness.mjs",
+    "harness-upgrade": "node scripts/harness-upgrade.mjs",
+    "harness-audit": "node scripts/harness-audit.mjs",
+    "backup-list": "node scripts/harness-backup.mjs list",
+    "backup-pin": "node scripts/harness-backup.mjs pin",
+    "backup-unpin": "node scripts/harness-backup.mjs unpin",
+    "backup-restore": "node scripts/harness-backup.mjs restore",
+    "report": "node scripts/harness-report.mjs",
+    "sweep": "node scripts/harness-sweep.mjs",
+    "setup": "node scripts/framework-check.mjs setup",
+    "help": "node scripts/framework-check.mjs help",
+    "prepublishOnly": "npm run check && npm run check-arch",
+    "setup:backend": "node tools/py.mjs setup",
+    "dev:backend": "node tools/py.mjs -m uvicorn invoice_intake.main:app --reload --port 8000"
+  },
+  "bin": {
+    "create-harness": "scripts/create-harness.mjs",
+    "harness-upgrade": "scripts/harness-upgrade.mjs",
+    "harness-audit": "scripts/harness-audit.mjs",
+    "harness-backup": "scripts/harness-backup.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

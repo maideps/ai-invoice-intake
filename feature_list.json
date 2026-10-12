@@ -1,0 +1,318 @@
+{
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "FastAPI service skeleton",
+      "behavior": "A FastAPI app in backend/ with layered packages, a /health endpoint, typed settings from environment variables, and lint, typecheck and test commands wired into the root npm scripts.",
+      "verification": "Hitting /health returns 200 in a test; npm run lint, typecheck and test run the backend tools and pass.",
+      "dependencies": [],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-002",
+      "name": "Invoice domain model and state machine",
+      "behavior": "Invoice, line item and audit event entities plus the lifecycle state machine (uploaded, extracting, needs_review, approved, rejected, exported) in the domain layer with no external dependencies.",
+      "verification": "Unit tests cover every allowed and forbidden transition; arch rule confirms domain imports nothing from infrastructure.",
+      "dependencies": [
+        "feat-001"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-003",
+      "name": "Synthetic invoice generator",
+      "behavior": "A script that generates reproducible synthetic invoices (PDF plus ground-truth JSON) in samples/, with varied vendors, currencies and layouts.",
+      "verification": "Running the generator twice with the same seed yields identical files; tests validate the ground-truth schema.",
+      "dependencies": [
+        "feat-002"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-004",
+      "name": "Persistence and upload API",
+      "behavior": "PostgreSQL persistence with migrations and endpoints to upload an invoice and list or fetch invoices and their audit events.",
+      "verification": "Integration tests upload a sample invoice, read it back, and see the audit event; migrations apply on a clean database.",
+      "dependencies": [
+        "feat-002"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-005",
+      "name": "AI extraction service",
+      "behavior": "An extraction provider interface with an OpenAI structured-output implementation and a deterministic fake, producing validated extraction results with per-field confidence.",
+      "verification": "Tests with the fake provider extract every synthetic invoice and match the ground truth; invalid model output is rejected and recorded.",
+      "dependencies": [
+        "feat-003",
+        "feat-004"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-006",
+      "name": "Review and approval API",
+      "behavior": "Endpoints to edit fields, approve and reject, enforcing the state machine and recording every human decision in the audit log.",
+      "verification": "Tests cover edit, approve, reject and invalid transitions; the audit log shows who changed what and when.",
+      "dependencies": [
+        "feat-005"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-007",
+      "name": "Background worker and queue",
+      "behavior": "A Redis-backed worker that runs extraction asynchronously after upload, with retries and failure status.",
+      "verification": "Uploading an invoice moves it from extracting to needs_review without blocking the request; a failing provider is retried then marked failed.",
+      "dependencies": [
+        "feat-005"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-008",
+      "name": "Review queue UI",
+      "behavior": "React + TypeScript app with the review queue: list, status filters and loading, empty and error states.",
+      "verification": "Component tests render the queue states; typecheck and lint pass; the app lists invoices from the API.",
+      "dependencies": [
+        "feat-004"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-009",
+      "name": "Review detail UI",
+      "behavior": "Detail view showing the source document beside editable extracted fields with confidence hints, plus approve and reject actions.",
+      "verification": "Component tests cover editing and decisions; an end-to-end test approves an invoice through the UI.",
+      "dependencies": [
+        "feat-006",
+        "feat-007",
+        "feat-008"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-010",
+      "name": "Export webhook",
+      "behavior": "Approved invoices are posted to a configurable webhook with retries and visible export status.",
+      "verification": "Tests assert payload shape, retry on failure, and that nothing is exported before approval.",
+      "dependencies": [
+        "feat-006"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-011",
+      "name": "Docker Compose and CI",
+      "behavior": "One-command local stack with docker compose and a GitHub Actions workflow running the harness check.",
+      "verification": "docker compose up serves the app on synthetic data; CI runs lint, typecheck, tests and build on every push.",
+      "dependencies": [
+        "feat-009",
+        "feat-010"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    },
+    {
+      "id": "feat-012",
+      "name": "README, diagram and demo",
+      "behavior": "Architecture diagram, screenshots or GIF, design-decisions section, and a short walkthrough in the README.",
+      "verification": "A new reader can run the project from the README alone in under five minutes.",
+      "dependencies": [
+        "feat-011"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis errors and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve remaining issues and rerun full verification."
+        }
+      ]
+    }
+  ]
+}
