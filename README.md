@@ -4,7 +4,7 @@ A full-stack, human-in-the-loop invoice automation app. Invoices are uploaded, a
 
 > **Portfolio project.** All invoices are synthetic. The project is built with [ai-harness-framework](https://github.com/maideps/ai-harness-framework): one feature at a time, with layered verification and durable session state in this repository.
 
-**Stack (planned):** FastAPI · PostgreSQL · Redis worker · OpenAI API (structured outputs) · React + TypeScript · Docker Compose · GitHub Actions
+**Stack (planned):** FastAPI · PostgreSQL · Redis worker · AI extraction provider chosen by config (OpenAI structured outputs first) · React + TypeScript · Docker Compose · GitHub Actions
 
 ## Status
 

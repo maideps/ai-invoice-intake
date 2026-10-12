@@ -37,7 +37,7 @@ This file records significant architectural decisions, their context, alternativ
 ### D-002: Tech stack and scope for the portfolio project
 
 **Date:** 2026-10-12
-**Status:** accepted
+**Status:** accepted (provider selection refined by D-005)
 **Context:** The goal is a public portfolio piece showing full-stack and AI-automation skills without using any employer code or data.
 **Decision:** FastAPI + PostgreSQL + Redis worker + React/TypeScript, invoices as the document type, all data synthetic, AI extraction behind an interface with a deterministic fake for tests, human approval required before any export.
 **Alternatives considered:**
@@ -73,3 +73,16 @@ This file records significant architectural decisions, their context, alternativ
 - Positive: `npm run check` is green and the skipped layer is stated in its output.
 - Negative: layer 3b is unverified until real e2e tests exist; the feature gate must not be read as end-to-end evidence yet.
 - Follow-up (resolved 2026-10-12): the framework's matrix no longer breaks on customised scripts (ai-harness-framework D-022, commit 79bd6c4), and the matrix passes in this repo after `harness-upgrade`. The placeholder stays anyway: the default e2e layer tests the harness, not this product, so it is replaced only when real end-to-end tests exist.
+
+### D-005: The AI extraction provider is chosen by configuration
+
+**Date:** 2026-10-12
+**Status:** accepted
+**Context:** D-002 put AI extraction behind an interface but named OpenAI as the only real implementation. The author wants to be able to run the pipeline on other providers (for example Anthropic, Gemini or a local model) without touching the worker, services or review flow.
+**Decision:** The `INVOICE_INTAKE_EXTRACTION_PROVIDER` setting names the provider (`openai`, `fake`, and later others). One factory in the infrastructure layer maps that name to an implementation of the domain's `ExtractionProvider` interface; nothing else imports a concrete provider. Each provider reads its own API key and model settings. The default is `fake`, so a fresh clone, the tests and CI run without an API key or network access. An unknown name or a missing key for the chosen provider fails at startup, not on the first invoice. feat-005 ships `openai` and `fake`; each extra provider is a new class plus a factory entry.
+**Alternatives considered:**
+- Hard-wire OpenAI and swap in the fake only in tests — Rejected: changing provider would mean code changes outside infrastructure.
+- Use a multi-provider wrapper library (for example LiteLLM) — Rejected for now: it hides the structured-output and document-input differences between providers that the extraction step depends on, and adds a dependency before there is a second provider.
+**Consequences:**
+- Positive: adding a provider touches only infrastructure and settings; the default runs offline.
+- Negative: providers differ in document input, structured-output support and confidence signals, so each implementation must map its output into the same validated `ExtractionResult`, and each one needs its own tests.

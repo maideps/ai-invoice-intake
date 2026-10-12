@@ -105,8 +105,8 @@
     {
       "id": "feat-005",
       "name": "AI extraction service",
-      "behavior": "An extraction provider interface with an OpenAI structured-output implementation and a deterministic fake, producing validated extraction results with per-field confidence.",
-      "verification": "Tests with the fake provider extract every synthetic invoice and match the ground truth; invalid model output is rejected and recorded.",
+      "behavior": "An extraction provider interface with an OpenAI structured-output implementation and a deterministic fake, selected at startup by the INVOICE_INTAKE_EXTRACTION_PROVIDER setting through a single factory, producing validated extraction results with per-field confidence.",
+      "verification": "Tests with the fake provider extract every synthetic invoice and match the ground truth; invalid model output is rejected and recorded; the factory returns the configured provider and fails at startup on an unknown name or a missing API key.",
       "dependencies": [
         "feat-003",
         "feat-004"

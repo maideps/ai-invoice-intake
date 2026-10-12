@@ -64,14 +64,14 @@ Co-locate architecture notes with the modules they affect; record framework-wide
 ```
 React + TypeScript dashboard  --HTTP-->  FastAPI service  --->  PostgreSQL
                                               |
-                                              +--->  Redis queue  --->  Worker  --->  Extraction provider (OpenAI, behind an interface)
+                                              +--->  Redis queue  --->  Worker  --->  Extraction provider (chosen by config; OpenAI first)
                                                                            |
                                                                            +--->  Export webhook
 ```
 
 Product directories (declared in `.harness/manifest.json` as `productRoots`):
 
-- `backend/` — FastAPI service and worker (Python). Layers: `api/` (presentation), `services/` (application), `domain/` (entities, state machine, rules), `infrastructure/` (database, queue, OpenAI client, webhook).
+- `backend/` — FastAPI service and worker (Python). Layers: `api/` (presentation), `services/` (application), `domain/` (entities, state machine, rules), `infrastructure/` (database, queue, extraction providers, webhook).
 - `frontend/` — React + TypeScript review dashboard.
 - `samples/` — synthetic invoices and the generator that produces them.
 - `docker-compose.yml` — local stack (API, worker, Postgres, Redis, frontend).
@@ -79,5 +79,5 @@ Product directories (declared in `.harness/manifest.json` as `productRoots`):
 Key design rules:
 
 - The invoice lifecycle is an explicit state machine in the domain layer: `uploaded -> extracting -> needs_review -> approved | rejected -> exported`.
-- The extraction provider is an interface owned by the domain; the OpenAI client implements it, and tests use a fake.
+- The extraction provider is an interface owned by the domain; infrastructure implements it (OpenAI first, plus a deterministic fake for tests). `INVOICE_INTAKE_EXTRACTION_PROVIDER` selects the implementation in one factory, and nothing else names a concrete provider (D-005).
 - Every state change and every AI or human edit appends an audit event; events are never updated or deleted.
