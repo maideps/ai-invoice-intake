@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (feat-001 passing; next: feat-002)
+- Current active feature (or none): none (feat-001 and feat-002 passing; next: feat-003)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -53,3 +53,18 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Files or artifacts updated: scripts/ (CORE, via upgrade), LICENSE (CORE, reset by upgrade to the framework's copyright line), DECISIONS.md, PROGRESS.md.
 - Known risk or unresolved issue: the e2e layer is still the SKIP placeholder (by design, D-004).
 - Next best step: feat-002 (invoice domain model and state machine), sprint contract first.
+
+### Session 004 — 2026-10-12
+
+- Goal: first run on the author's Windows machine, provider-by-config plan change, then feat-002 (invoice domain model and state machine).
+- Completed:
+  - Windows baseline: `npm run setup:backend` and `npm run check` pass (Python 3.14 venv); the earlier mypy cache issue did not occur.
+  - D-005: the extraction provider is chosen by `INVOICE_INTAKE_EXTRACTION_PROVIDER` through one factory (default `fake`); feat-005 declaration, ARCHITECTURE.md and README updated (commit f48a0b4).
+  - feat-002: sprint contract `docs/sprints/feat-002.md`; domain package (`actors`, `status`, `audit`, `invoice`, `errors`) with the state machine, actor rules (only a user approves or rejects), required rejection reason, append-only audit trail, Decimal-only money, timezone-aware times.
+  - arch-007 in `.harness/arch-rules.json`: `backend/tools/check_domain_imports.py` fails on any domain import outside the standard library or the domain package; shown to fail on a planted `invoice_intake.config` import.
+- Verification run: `npm run verify-feature -- feat-002` (layers 1-3 pass, e2e SKIP placeholder); `npm run check-arch` (all 7 rules pass); 104 backend tests, ruff, mypy --strict on src, tests and tools.
+- Evidence captured: `.harness/state/feat-002.json` (written by verify-feature).
+- Commits: f48a0b4 (D-005); feat-002 not yet committed at time of writing.
+- Files or artifacts updated: backend/src/invoice_intake/domain/, backend/tests/ (domain tests), backend/tools/, backend/pyproject.toml (pytest and mypy paths), .harness/arch-rules.json, docs/ARCHITECTURE.md, docs/quality-document.md, docs/sprints/feat-002.md, PROGRESS.md, session-handoff.md.
+- Known risk or unresolved issue: the state set has no `failed` status; feat-007 (worker) must add it with its transitions. The `Invoice` entity can only be created as a new upload; feat-004 needs a way to rebuild one from stored events. Field edits and their audit actions belong to feat-006.
+- Next best step: feat-003 (synthetic invoice generator) or feat-004 (persistence and upload API); both depend only on feat-002.

@@ -78,6 +78,7 @@ Product directories (declared in `.harness/manifest.json` as `productRoots`):
 
 Key design rules:
 
-- The invoice lifecycle is an explicit state machine in the domain layer: `uploaded -> extracting -> needs_review -> approved | rejected -> exported`.
+- The invoice lifecycle is an explicit state machine in the domain layer (`backend/src/invoice_intake/domain/status.py`): `uploaded -> extracting -> needs_review -> approved -> exported`, or `needs_review -> rejected`. `rejected` and `exported` are terminal. Each move names the actor kind allowed to make it: only a `user` may approve or reject, and the platform (`system`) makes every other move. A rejection needs a reason.
+- The domain layer imports only the standard library and itself; `check-arch` enforces this as arch-007 (`backend/tools/check_domain_imports.py`).
 - The extraction provider is an interface owned by the domain; infrastructure implements it (OpenAI first, plus a deterministic fake for tests). `INVOICE_INTAKE_EXTRACTION_PROVIDER` selects the implementation in one factory, and nothing else names a concrete provider (D-005).
 - Every state change and every AI or human edit appends an audit event; events are never updated or deleted.

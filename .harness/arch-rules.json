@@ -53,6 +53,15 @@
       "what": "A feature_list.json entry still declares state/status/evidence inline, or a file under .harness/state/ is invalid JSON, has an invalid state, or does not correspond to any declared feature.",
       "why": "Sharded feature state (feat-011, D-017) only delivers conflict-free lane landings if feature_list.json truly stays declaration-only and every shard is a real, valid record of one feature's current state — drift here silently reintroduces the whole-file race the sharding exists to remove.",
       "fix": "Run `node scripts/framework-check.mjs migrate-feature-state` to move inline state/evidence into .harness/state/<id>.json, or fix/remove the invalid or stray shard file."
+    },
+    {
+      "id": "arch-007",
+      "description": "Backend domain layer imports only the standard library and itself",
+      "check": "node tools/py.mjs tools/check_domain_imports.py",
+      "expect": "^PASS: domain layer",
+      "what": "A module in backend/src/invoice_intake/domain imports a third-party package or another backend layer (api, services, infrastructure, config).",
+      "why": "The domain holds the invoice rules and state machine; keeping it free of frameworks and outer layers makes those rules testable in isolation and lets infrastructure (database, queue, AI providers) change without touching them (docs/ARCHITECTURE.md, Application Dependency Rules).",
+      "fix": "Move the dependency behind an interface defined in the domain and implement it in infrastructure, or move the code out of the domain. The checker output lists each offending file, line and module."
     }
   ]
 }
