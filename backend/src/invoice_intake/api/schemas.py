@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, PlainSerializer
@@ -79,6 +79,15 @@ class InvoiceSummaryOut(BaseModel):
         )
 
 
+class ExportOut(BaseModel):
+    """Delivery to the export webhook, for approved and exported invoices."""
+
+    state: Literal["pending", "retrying", "failed", "exported"]
+    attempts: int  # failed attempts since approval
+    last_error: str | None
+    exported_at: datetime | None
+
+
 class InvoiceOut(BaseModel):
     id: UUID
     filename: str
@@ -87,6 +96,7 @@ class InvoiceOut(BaseModel):
     uploaded_at: datetime
     fields: FieldsOut
     confidence: dict[str, float] | None  # per field, from the latest accepted extraction
+    export: ExportOut | None  # null until approved
     events: list[AuditEventOut]
 
     @classmethod
@@ -118,8 +128,21 @@ class InvoiceOut(BaseModel):
                 ],
             ),
             confidence=invoice.extraction_confidence,
+            export=_export(invoice),
             events=[AuditEventOut.of(event) for event in invoice.events],
         )
+
+
+def _export(invoice: Invoice) -> ExportOut | None:
+    status = invoice.export_status
+    if status is None:
+        return None
+    return ExportOut(
+        state=status.state,
+        attempts=status.attempts,
+        last_error=status.last_error,
+        exported_at=status.exported_at,
+    )
 
 
 class InvoicePageOut(BaseModel):

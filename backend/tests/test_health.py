@@ -16,7 +16,12 @@ def test_health_returns_ok_with_version_and_environment() -> None:
     response = make_client().get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "version": __version__, "environment": "test"}
+    assert response.json() == {
+        "status": "ok",
+        "version": __version__,
+        "environment": "test",
+        "export_configured": False,
+    }
 
 
 def test_health_reports_the_configured_environment() -> None:

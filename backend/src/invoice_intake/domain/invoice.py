@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from .actors import Actor, ActorKind
@@ -27,7 +27,21 @@ _NOTE_RULES: dict[AuditAction, tuple[InvoiceStatus, ActorKind]] = {
     AuditAction.EXTRACTION_RECORDED: (InvoiceStatus.EXTRACTING, ActorKind.AI),
     AuditAction.EXTRACTION_REJECTED: (InvoiceStatus.EXTRACTING, ActorKind.AI),
     AuditAction.FIELDS_EDITED: (InvoiceStatus.NEEDS_REVIEW, ActorKind.USER),
+    AuditAction.EXPORT_FAILED: (InvoiceStatus.APPROVED, ActorKind.SYSTEM),
 }
+
+EXPORTER = Actor(ActorKind.SYSTEM, "export-service")
+
+
+@dataclass(frozen=True)
+class ExportStatus:
+    """Where an approved invoice is in its delivery to the export webhook."""
+
+    state: Literal["pending", "retrying", "failed", "exported"]
+    attempts: int  # failed attempts so far (0 when pending or exported first time)
+    last_error: str | None
+    exported_at: datetime | None
+
 
 # Fields an invoice must have before a reviewer can approve it.
 REQUIRED_FOR_APPROVAL = ("vendor_name", "invoice_number", "issue_date", "currency", "total")
@@ -248,6 +262,27 @@ class Invoice:
         return [name for name in REQUIRED_FOR_APPROVAL if getattr(self._fields, name) is None]
 
     @property
+    def export_status(self) -> ExportStatus | None:
+        """Derived from the trail; ``None`` until the invoice is approved."""
+        if self._status not in (InvoiceStatus.APPROVED, InvoiceStatus.EXPORTED):
+            return None
+        approved_at = max(
+            i for i, event in enumerate(self._events) if event.to_status is InvoiceStatus.APPROVED
+        )
+        failures = [
+            event.details
+            for event in self._events[approved_at:]
+            if event.action is AuditAction.EXPORT_FAILED and event.details is not None
+        ]
+        last_error = str(failures[-1]["error"]) if failures else None
+        if self._status is InvoiceStatus.EXPORTED:
+            return ExportStatus("exported", len(failures), last_error, self._events[-1].occurred_at)
+        if not failures:
+            return ExportStatus("pending", 0, None, None)
+        state: Literal["failed", "retrying"] = "failed" if failures[-1]["final"] else "retrying"
+        return ExportStatus(state, len(failures), last_error, None)
+
+    @property
     def extraction_confidence(self) -> dict[str, float] | None:
         """Per-field confidence of the latest accepted extraction, if any."""
         for event in reversed(self._events):
@@ -299,6 +334,28 @@ class Invoice:
         )
         self._fields = fields
         return event
+
+    def record_export_failure(
+        self,
+        *,
+        attempt: int,
+        error: str,
+        final: bool,
+        status_code: int | None,
+        at: datetime,
+    ) -> AuditEvent:
+        """A delivery to the export webhook failed; ``final`` when no retry will follow."""
+        return self._note(
+            AuditAction.EXPORT_FAILED,
+            actor=EXPORTER,
+            at=at,
+            details={
+                "attempt": attempt,
+                "error": error,
+                "final": final,
+                "status_code": status_code,
+            },
+        )
 
     def record_rejected_extraction(
         self, *, provider: str, model: str, output: object, errors: Sequence[str], at: datetime

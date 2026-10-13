@@ -24,11 +24,20 @@ from .extraction import (
     parse_extraction,
 )
 from .field_values import FIELD_NAMES, FieldValuesError, parse_field_patch
-from .invoice import REQUIRED_FOR_APPROVAL, ApprovalBlockedError, Invoice, InvoiceFields, LineItem
+from .invoice import (
+    EXPORTER,
+    REQUIRED_FOR_APPROVAL,
+    ApprovalBlockedError,
+    ExportStatus,
+    Invoice,
+    InvoiceFields,
+    LineItem,
+)
 from .repository import Document, InvoicePage, InvoiceRepository
 from .status import TRANSITIONS, InvoiceStatus, allowed_next, is_terminal
 
 __all__ = [
+    "EXPORTER",
     "FIELD_NAMES",
     "OUTPUT_SCHEMA",
     "REQUIRED_FOR_APPROVAL",
@@ -45,6 +54,7 @@ __all__ = [
     "ExtractionOutputError",
     "ExtractionProvider",
     "ExtractionProviderError",
+    "ExportStatus",
     "ExtractionResult",
     "FieldValuesError",
     "InvalidInvoiceDataError",

@@ -11,6 +11,7 @@ from uuid import UUID
 from fastapi import APIRouter, File, HTTPException, Query, Request, Response, UploadFile
 
 from invoice_intake.domain import InvoiceStatus
+from invoice_intake.services.export import NotExportableError
 from invoice_intake.services.extraction import NotExtractableError
 from invoice_intake.services.intake import (
     EmptyUploadError,
@@ -20,7 +21,7 @@ from invoice_intake.services.intake import (
     UploadTooLargeError,
 )
 
-from .dependencies import CurrentUser, ExtractionServiceDep, IntakeServiceDep
+from .dependencies import CurrentUser, ExportServiceDep, ExtractionServiceDep, IntakeServiceDep
 from .schemas import AuditEventOut, InvoiceOut, InvoicePageOut, StatsOut
 
 T = TypeVar("T")
@@ -114,6 +115,23 @@ def extract_invoice(
     except InvoiceNotFoundError as error:
         raise HTTPException(404, str(error)) from error
     except NotExtractableError as error:
+        raise HTTPException(409, str(error)) from error
+    return InvoiceOut.of(invoice)
+
+
+@router.post(
+    "/{invoice_id}/export",
+    status_code=202,
+    response_model=InvoiceOut,
+    responses={404: {"description": "Unknown invoice"}, 409: {"description": "Not approved"}},
+)
+def export_invoice(invoice_id: UUID, service: ExportServiceDep) -> InvoiceOut:
+    """Queue another delivery to the export webhook, for example after it failed."""
+    try:
+        invoice = service.request(invoice_id)
+    except InvoiceNotFoundError as error:
+        raise HTTPException(404, str(error)) from error
+    except NotExportableError as error:
         raise HTTPException(409, str(error)) from error
     return InvoiceOut.of(invoice)
 

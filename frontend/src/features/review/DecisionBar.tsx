@@ -1,10 +1,11 @@
-import { Check, LoaderCircle, RotateCw, X } from "lucide-react";
+import { Check, CircleCheck, LoaderCircle, RotateCw, Send, TriangleAlert, X } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
 
 import type { Invoice } from "@/api/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatDateTime, formatRelative } from "@/lib/format";
 import { STATUS_META } from "@/lib/status";
 
 import { missingForApproval } from "./draft";
@@ -18,6 +19,9 @@ interface Props {
   onApprove: () => void;
   onReject: (reason: string) => void;
   onRetry: () => void;
+  /** null while unknown (health not loaded yet). */
+  exportConfigured: boolean | null;
+  onRetryExport: () => void;
 }
 
 /** What can happen next, given the invoice's status. */
@@ -49,6 +53,7 @@ export function DecisionBar(props: Props) {
           </span>
         )}
       </div>
+      {invoice.export && <ExportState {...props} />}
       {invoice.status === "needs_review" && (missing.length > 0 || props.dirty) && (
         <p className="mt-3 text-xs text-[var(--status-review)]">
           {props.dirty
@@ -57,6 +62,57 @@ export function DecisionBar(props: Props) {
         </p>
       )}
     </section>
+  );
+}
+
+/** Where the approved invoice is on its way to the accounting system. */
+function ExportState({ invoice, exportConfigured, onRetryExport, busy }: Props) {
+  const exp = invoice.export!;
+  const tone = "mt-3 flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-sm";
+  if (exp.state === "exported") {
+    return (
+      <p className={`${tone} bg-[var(--status-good-soft)] text-[var(--status-good)]`}>
+        <CircleCheck className="size-4" aria-hidden="true" />
+        Exported to the accounting system{" "}
+        {exp.exported_at && (
+          <time dateTime={exp.exported_at} title={formatDateTime(exp.exported_at)}>
+            {formatRelative(exp.exported_at)}
+          </time>
+        )}
+      </p>
+    );
+  }
+  if (exp.state === "failed") {
+    return (
+      <div role="alert" className={`${tone} bg-[var(--status-bad-soft)] text-[var(--status-bad)]`}>
+        <TriangleAlert className="size-4" aria-hidden="true" />
+        <span className="flex-1">
+          Export failed after {exp.attempts} attempt{exp.attempts === 1 ? "" : "s"}: {exp.last_error}
+        </span>
+        <Button size="sm" onClick={onRetryExport} disabled={busy}>
+          <RotateCw /> Retry export
+        </Button>
+      </div>
+    );
+  }
+  if (exp.state === "retrying") {
+    return (
+      <p className={`${tone} bg-[var(--status-review-soft)] text-[var(--status-review)]`}>
+        <TriangleAlert className="size-4" aria-hidden="true" />
+        Delivery attempt {exp.attempts} failed: {exp.last_error}. Retrying on its own.
+      </p>
+    );
+  }
+  return exportConfigured === false ? (
+    <p className={`${tone} bg-surface-muted text-muted`}>
+      <Send className="size-4" aria-hidden="true" />
+      Waiting to be exported. No export webhook is configured (INVOICE_INTAKE_EXPORT_WEBHOOK_URL).
+    </p>
+  ) : (
+    <p className={`${tone} bg-surface-muted text-muted`}>
+      <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" />
+      Sending to the accounting system…
+    </p>
   );
 }
 

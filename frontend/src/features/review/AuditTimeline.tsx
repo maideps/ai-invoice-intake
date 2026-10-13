@@ -51,6 +51,7 @@ function describe(event: AuditEvent): string {
       if (event.from_status === null) return "uploaded the invoice";
       if (event.to_status === "approved") return "approved it";
       if (event.to_status === "rejected") return "rejected it";
+      if (event.to_status === "exported") return "delivered it to the accounting system";
       return event.to_status
         ? `moved it to ${STATUS_META[event.to_status].label.toLowerCase()}`
         : "changed its status";
@@ -61,6 +62,11 @@ function describe(event: AuditEvent): string {
     }
     case "extraction_rejected":
       return "returned output that failed the checks";
+    case "export_failed": {
+      const details = (event.details ?? {}) as { attempt?: number; final?: boolean };
+      const last = details.final ? " (no more automatic retries)" : "";
+      return `couldn't deliver it, attempt ${details.attempt ?? "?"}${last}`;
+    }
     case "fields_edited": {
       const changed = Object.keys(event.details?.changes ?? {});
       return `changed ${changed.map((name) => LABELS[name] ?? name).join(", ")}`;
@@ -85,6 +91,10 @@ function EventDetail({ event }: { event: AuditEvent }) {
         ))}
       </ul>
     );
+  }
+  if (event.action === "export_failed") {
+    const error = event.details?.error;
+    return <p className="mt-0.5 text-xs text-muted">{typeof error === "string" ? error : ""}</p>;
   }
   if (event.action === "extraction_rejected") {
     const errors = (event.details?.errors ?? []) as string[];

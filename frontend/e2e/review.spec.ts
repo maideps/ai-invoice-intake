@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,7 +9,16 @@ const SAMPLE = path.resolve(
   "../../samples/invoices/invoice-007.pdf",
 );
 
-test("a reviewer uploads, checks, corrects and approves an invoice", async ({ page }) => {
+const WEBHOOK = process.env.E2E_WEBHOOK_URL ?? "http://127.0.0.1:8101";
+const SECRET = process.env.E2E_WEBHOOK_SECRET ?? "e2e-webhook-secret";
+
+interface Delivery {
+  path: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
+test("a reviewer uploads, checks, corrects and approves an invoice, which is exported", async ({ page, request }) => {
   await page.goto("/");
 
   // Who is acting: recorded in the audit trail.
@@ -43,7 +53,10 @@ test("a reviewer uploads, checks, corrects and approves an invoice", async ({ pa
   // Approve with the keyboard (focus outside the fields).
   await page.getByRole("heading", { name: "invoice-007.pdf" }).click();
   await page.keyboard.press("a");
-  await expect(page.getByText("Approved for export")).toBeVisible();
+  await expect(page.getByText("invoice-007.pdf approved")).toBeVisible();
+
+  // The worker posts it to the accounting system's webhook; the screen follows along.
+  await expect(page.getByText(/Exported to the accounting system/)).toBeVisible({ timeout: 30_000 });
 
   const trail = page.getByRole("region", { name: "Audit trail" });
   await expect(trail).toContainText("e2e-reviewer uploaded the invoice");
@@ -51,8 +64,22 @@ test("a reviewer uploads, checks, corrects and approves an invoice", async ({ pa
   await expect(trail).toContainText("e2e-reviewer changed invoice number");
   await expect(trail).toContainText("F2026/3734-A");
   await expect(trail).toContainText("e2e-reviewer approved it");
+  await expect(trail).toContainText("export-service delivered it to the accounting system");
 
-  // Back in the queue, the invoice now counts as approved.
+  // Exactly one delivery, signed, carrying the corrected fields.
+  const deliveries = (await (await request.get(`${WEBHOOK}/deliveries`)).json()) as Delivery[];
+  expect(deliveries).toHaveLength(1);
+  const [delivery] = deliveries;
+  const payload = JSON.parse(delivery.body) as { invoice_id: string; approved_by: string; fields: Record<string, unknown> };
+  expect(delivery.path).toBe("/invoices");
+  expect(delivery.headers["x-invoice-intake-signature"]).toBe(
+    `sha256=${createHmac("sha256", SECRET).update(delivery.body).digest("hex")}`,
+  );
+  expect(delivery.headers["idempotency-key"]).toBe(payload.invoice_id);
+  expect(payload.approved_by).toBe("e2e-reviewer");
+  expect(payload.fields.invoice_number).toBe("F2026/3734-A");
+
+  // Back in the queue, the invoice now counts as exported.
   await page.getByRole("link", { name: "Review queue" }).first().click();
-  await expect(page.getByRole("button", { name: /^Approved\s*1$/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Exported\s*1$/ })).toBeVisible();
 });

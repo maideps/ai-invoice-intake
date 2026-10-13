@@ -20,6 +20,8 @@ from uuid import UUID
 
 import redis
 
+from invoice_intake.services.queue import JobKind
+
 # Moves due retries from the delayed set to the ready list in one atomic step.
 _PROMOTE_DUE = """
 local due = redis.call('ZRANGEBYSCORE', KEYS[1], '-inf', ARGV[1], 'LIMIT', 0, 100)
@@ -35,14 +37,20 @@ return #due
 class Job:
     invoice_id: UUID
     attempt: int = 1
+    kind: JobKind = "extract"
 
     def encode(self) -> str:
-        return json.dumps({"attempt": self.attempt, "invoice_id": str(self.invoice_id)})
+        return json.dumps(
+            {"attempt": self.attempt, "invoice_id": str(self.invoice_id), "kind": self.kind}
+        )
 
     @classmethod
     def decode(cls, raw: str) -> "Job":
         data = json.loads(raw)
-        return cls(invoice_id=UUID(data["invoice_id"]), attempt=int(data["attempt"]))
+        kind: JobKind = (
+            "export" if data.get("kind") == "export" else "extract"
+        )  # older jobs: extract
+        return cls(invoice_id=UUID(data["invoice_id"]), attempt=int(data["attempt"]), kind=kind)
 
 
 class RedisExtractionQueue:
@@ -67,8 +75,8 @@ class RedisExtractionQueue:
         """Connects lazily: nothing talks to Redis until the first command."""
         return cls(redis.Redis.from_url(url, decode_responses=True), **options)
 
-    def enqueue(self, invoice_id: UUID) -> None:
-        self.schedule(Job(invoice_id))
+    def enqueue(self, invoice_id: UUID, kind: JobKind = "extract") -> None:
+        self.schedule(Job(invoice_id, kind=kind))
 
     def schedule(self, job: Job, *, delay_seconds: float = 0) -> None:
         if delay_seconds <= 0:

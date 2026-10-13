@@ -217,3 +217,63 @@ function event(sequence: number, overrides: Partial<Invoice["events"][number]>):
     ...overrides,
   };
 }
+
+describe("export state", () => {
+  const approved = (exportState: Invoice["export"], events: Invoice["events"] = []) =>
+    seed({ status: "approved", export: exportState, events });
+
+  it("says the invoice is on its way while export is pending", async () => {
+    await open(approved({ state: "pending", attempts: 0, last_error: null, exported_at: null }));
+
+    expect(await screen.findByText("Sending to the accounting system…")).toBeInTheDocument();
+  });
+
+  it("explains when no export webhook is configured", async () => {
+    db.exportConfigured = false;
+    await open(approved({ state: "pending", attempts: 0, last_error: null, exported_at: null }));
+
+    expect(await screen.findByText(/No export webhook is configured/)).toBeInTheDocument();
+  });
+
+  it("shows a failing delivery while it retries", async () => {
+    await open(approved({ state: "retrying", attempts: 1, last_error: "HTTP 503: down", exported_at: null }));
+
+    expect(screen.getByText("Delivery attempt 1 failed: HTTP 503: down. Retrying on its own.")).toBeInTheDocument();
+  });
+
+  it("offers to retry an export that gave up", async () => {
+    const invoice = approved({ state: "failed", attempts: 5, last_error: "HTTP 500", exported_at: null });
+    const { user } = await open(invoice);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Export failed after 5 attempts: HTTP 500");
+    await user.click(screen.getByRole("button", { name: /Retry export/ }));
+
+    expect(await screen.findByText("Queued for another delivery attempt")).toBeInTheDocument();
+    expect(db.exportRequests).toEqual([invoice.id]);
+  });
+
+  it("confirms when the invoice reached the accounting system", async () => {
+    const at = new Date().toISOString();
+    await open(seed({ status: "exported", export: { state: "exported", attempts: 0, last_error: null, exported_at: at } }));
+
+    expect(screen.getByText(/Exported to the accounting system/)).toBeInTheDocument();
+  });
+
+  it("lists failed deliveries in the audit trail", async () => {
+    await open(
+      approved({ state: "failed", attempts: 2, last_error: "HTTP 503: down", exported_at: null }, [
+        event(1, { actor_name: "maide", to_status: "uploaded" }),
+        event(2, {
+          actor_kind: "system",
+          actor_name: "export-service",
+          action: "export_failed",
+          details: { attempt: 2, error: "HTTP 503: down", final: true, status_code: 503 },
+        }),
+      ]),
+    );
+    const trail = screen.getByRole("region", { name: "Audit trail" });
+
+    expect(within(trail).getByText(/couldn't deliver it, attempt 2 \(no more automatic retries\)/)).toBeInTheDocument();
+    expect(within(trail).getByText("HTTP 503: down")).toBeInTheDocument();
+  });
+});

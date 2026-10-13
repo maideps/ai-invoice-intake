@@ -1,16 +1,19 @@
 """The queue the services hand invoices to. The worker's Redis queue implements it (D-010)."""
 
 import logging
-from typing import Protocol
+from typing import Literal, Protocol
 from uuid import UUID
 
 log = logging.getLogger(__name__)
+
+# What the worker should do with the invoice.
+JobKind = Literal["extract", "export"]
 
 
 class ExtractionQueue(Protocol):
     """Where invoices wait for the worker. Delivery may repeat, so consumers must be idempotent."""
 
-    def enqueue(self, invoice_id: UUID) -> None: ...
+    def enqueue(self, invoice_id: UUID, kind: JobKind = "extract") -> None: ...
 
 
 class AfterCommitQueue:
@@ -22,15 +25,15 @@ class AfterCommitQueue:
     """
 
     def __init__(self) -> None:
-        self.pending: list[UUID] = []
+        self.pending: list[tuple[UUID, JobKind]] = []
 
-    def enqueue(self, invoice_id: UUID) -> None:
-        self.pending.append(invoice_id)
+    def enqueue(self, invoice_id: UUID, kind: JobKind = "extract") -> None:
+        self.pending.append((invoice_id, kind))
 
     def flush_to(self, queue: ExtractionQueue) -> None:
-        for invoice_id in self.pending:
+        for invoice_id, kind in self.pending:
             try:
-                queue.enqueue(invoice_id)
-            except Exception:  # the upload is committed; the sweep will pick it up
-                log.warning("could not queue invoice %s for extraction", invoice_id, exc_info=True)
+                queue.enqueue(invoice_id, kind)
+            except Exception:  # the change is committed; the worker's sweep will pick it up
+                log.warning("could not queue invoice %s for %s", invoice_id, kind, exc_info=True)
         self.pending.clear()

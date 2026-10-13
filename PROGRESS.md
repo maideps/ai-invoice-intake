@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (feat-001 to feat-009 passing; next: feat-010)
+- Current active feature (or none): none (feat-001 to feat-010 passing; next: feat-011)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -98,3 +98,23 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Files or artifacts updated: backend/src/invoice_intake/domain/ (field_values.py, extraction.py, invoice.py, audit.py), services/review.py, api/review.py, api/schemas.py, api/dependencies.py, main.py, migrations/versions/rev_0003_*, tests, README.md, docs/ARCHITECTURE.md, DECISIONS.md, docs/quality-document.md, docs/sprints/feat-006.md, PROGRESS.md, session-handoff.md.
 - Known risk or unresolved issue: the acting user is still the trusted `X-User` header; the approval field list is a fixed rule (D-009); the OpenAI provider is still untried with a real key; `npm run check` now needs Docker for PostgreSQL and Redis; several workers need distinct `INVOICE_INTAKE_WORKER_ID`s; the frontend needs Node 20.19+ and `npm run setup:frontend` (with Playwright's Chromium) before `npm run check`; `npm run e2e` uses ports 5434, 6380, 8100 and 5174.
 - Next best step: feat-010 (export webhook: approved invoices posted to a configured URL with retries and visible export status), sprint contract first.
+
+### Session 006 — 2026-10-13
+
+- Goal: feat-010 (export webhook).
+- Completed:
+  - Sprint contract `docs/sprints/feat-010.md`.
+  - Domain: `export_failed` audit action (only while `approved`, only by the system; attempt, error, HTTP status, last attempt or not), `Invoice.export_status` derived from the trail (`pending`, `retrying`, `failed`, `exported`), `EXPORTER` actor. Migration 0005 (downgrade refuses while such events exist).
+  - Services: `services/export.py` (`export_payload` v1, `ExportService` with `request` / `begin` / `complete` / `record_failure` / `requeue_unsent`, `ExportRunner`, the `ExportSender` interface); approving queues an export after the commit; queue jobs gained a `kind` (`extract` / `export`).
+  - Infrastructure: `HttpWebhookSender` (httpx2; `Idempotency-Key`, per-attempt delivery id, HMAC-SHA256 signature).
+  - Worker: dispatches by job kind, export backoff, skips export when no URL is set, sweep re-queues approved invoices still pending.
+  - API: `export` on invoice responses, `POST /invoices/{id}/export` (202 / 404 / 409), `export_configured` in `GET /health`; settings `INVOICE_INTAKE_EXPORT_*`.
+  - UI: export state in the decision area (sending, not configured, retrying, failed with "Retry export", exported), failed attempts in the timeline, closer polling while an export is in flight.
+  - E2E: `tools/e2e.mjs` runs an in-process webhook receiver (port 8101) and configures the worker with a URL and secret; the spec checks one signed delivery with the corrected fields and the "Exported" state. Playwright now runs through an async spawn, because `spawnSync` blocked the receiver (found by the first run, where the screen correctly showed the retries).
+  - D-014; README, ARCHITECTURE.md, `backend/.env.example`, quality document.
+- Verification run: `npm run verify-feature -- feat-010` (all layers, real e2e); `npm run check-arch`; 463 backend tests (worker export tests repeated without flakiness), ruff, mypy --strict; 61 frontend tests, ESLint, `tsc`, `vite build`; Playwright e2e (no containers, ports or processes left behind).
+- Evidence captured: `.harness/state/feat-010.json` (written by verify-feature).
+- Commits: af657d5 (feat-009); feat-010 is the next commit.
+- Files or artifacts updated: backend/src/invoice_intake/ (domain/audit.py, domain/invoice.py, services/export.py, services/queue.py, services/review.py, infrastructure/export_webhook.py, infrastructure/queue.py, api/, config.py, main.py, worker.py), backend/migrations/versions/rev_0005_*, backend/tests/, frontend/src/ (api, features/review, test/server.ts), frontend/e2e/review.spec.ts, tools/e2e.mjs, README.md, docs/, DECISIONS.md, PROGRESS.md, session-handoff.md.
+- Known risk or unresolved issue: delivery is at least once (receivers de-duplicate by `Idempotency-Key`); one destination only; the e2e run now also needs port 8101; the acting user is still the trusted `X-User` header.
+- Next best step: feat-011 (Docker Compose packaging and project CI), sprint contract first.

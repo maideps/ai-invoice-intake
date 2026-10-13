@@ -146,6 +146,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/invoices/{invoice_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export Invoice
+         * @description Queue another delivery to the export webhook, for example after it failed.
+         */
+        post: operations["export_invoice_invoices__invoice_id__export_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/invoices/{invoice_id}/fields": {
         parameters: {
             query?: never;
@@ -260,6 +280,23 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ExportOut
+         * @description Delivery to the export webhook, for approved and exported invoices.
+         */
+        ExportOut: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "pending" | "retrying" | "failed" | "exported";
+            /** Attempts */
+            attempts: number;
+            /** Last Error */
+            last_error: string | null;
+            /** Exported At */
+            exported_at: string | null;
+        };
         /** FieldsOut */
         FieldsOut: {
             /** Vendor Name */
@@ -297,6 +334,8 @@ export interface components {
             version: string;
             /** Environment */
             environment: string;
+            /** Export Configured */
+            export_configured: boolean;
         };
         /** InvoiceOut */
         InvoiceOut: {
@@ -320,6 +359,7 @@ export interface components {
             confidence: {
                 [key: string]: number;
             } | null;
+            export: components["schemas"]["ExportOut"] | null;
             /** Events */
             events: components["schemas"]["AuditEventOut"][];
         };
@@ -653,6 +693,51 @@ export interface operations {
                 content?: never;
             };
             /** @description The invoice is past extraction */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_invoice_invoices__invoice_id__export_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invoice_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceOut"];
+                };
+            };
+            /** @description Unknown invoice */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not approved */
             409: {
                 headers: {
                     [name: string]: unknown;

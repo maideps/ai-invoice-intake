@@ -18,6 +18,7 @@ from invoice_intake.config import Settings, get_settings
 from invoice_intake.infrastructure.database import make_engine, make_session_factory
 from invoice_intake.infrastructure.queue import RedisExtractionQueue
 from invoice_intake.infrastructure.repository import SqlInvoiceRepository
+from invoice_intake.services.export import ExportService, ExportServiceFactory
 from invoice_intake.services.extraction import ExtractionService, ExtractionServiceFactory
 from invoice_intake.services.intake import IntakeService, IntakeServiceFactory
 from invoice_intake.services.queue import AfterCommitQueue, ExtractionQueue
@@ -34,6 +35,7 @@ def create_app(
     intake_service: IntakeServiceFactory | None = None,
     extraction_service: ExtractionServiceFactory | None = None,
     review_service: ReviewServiceFactory | None = None,
+    export_service: ExportServiceFactory | None = None,
     extraction_queue: ExtractionQueue | None = None,
 ) -> FastAPI:
     """Build the app. Tests pass explicit settings, their own service factories or queue.
@@ -67,8 +69,17 @@ def create_app(
 
     @contextmanager
     def sql_review_service() -> Iterator[ReviewService]:
+        pending = AfterCommitQueue()  # approvals queue an export, after the commit
         with sessions.begin() as session:
-            yield ReviewService(SqlInvoiceRepository(session), clock=utc_now)
+            yield ReviewService(SqlInvoiceRepository(session), pending, clock=utc_now)
+        pending.flush_to(queue)
+
+    @contextmanager
+    def sql_export_service() -> Iterator[ExportService]:
+        pending = AfterCommitQueue()
+        with sessions.begin() as session:
+            yield ExportService(SqlInvoiceRepository(session), pending, clock=utc_now)
+        pending.flush_to(queue)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -80,6 +91,7 @@ def create_app(
     app.state.intake_service = intake_service or sql_intake_service
     app.state.extraction_service = extraction_service or sql_extraction_service
     app.state.review_service = review_service or sql_review_service
+    app.state.export_service = export_service or sql_export_service
     app.include_router(health_router)
     app.include_router(invoices_router)
     app.include_router(review_router)

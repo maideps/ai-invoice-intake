@@ -10,6 +10,7 @@ from invoice_intake.domain import (
     InvoiceStatus,
     RawExtraction,
 )
+from invoice_intake.services.queue import JobKind
 
 
 def _copy(invoice: Invoice) -> Invoice:
@@ -88,10 +89,12 @@ class ScriptedProvider:
 
 
 class RecordingQueue:
-    """An ``ExtractionQueue`` that only remembers what was queued."""
+    """An ``ExtractionQueue`` that only remembers what was queued (``queued``: extraction jobs,
+    ``exports``: export jobs)."""
 
     def __init__(self) -> None:
         self.queued: list[UUID] = []
+        self.exports: list[UUID] = []
 
-    def enqueue(self, invoice_id: UUID) -> None:
-        self.queued.append(invoice_id)
+    def enqueue(self, invoice_id: UUID, kind: JobKind = "extract") -> None:
+        (self.exports if kind == "export" else self.queued).append(invoice_id)

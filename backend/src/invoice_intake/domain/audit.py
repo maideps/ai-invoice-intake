@@ -18,6 +18,7 @@ class AuditAction(str, Enum):
     EXTRACTION_RECORDED = "extraction_recorded"  # AI output accepted; details hold it
     EXTRACTION_REJECTED = "extraction_rejected"  # AI output failed validation; details hold why
     FIELDS_EDITED = "fields_edited"  # a reviewer changed field values; details hold before/after
+    EXPORT_FAILED = "export_failed"  # a delivery to the export webhook failed; details hold why
 
 
 @dataclass(frozen=True)

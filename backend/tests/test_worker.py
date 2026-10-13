@@ -1,5 +1,6 @@
 """The worker end to end: API, PostgreSQL, Redis queue and worker loop together."""
 
+import json
 import threading
 import time
 from collections.abc import Callable, Iterator
@@ -21,6 +22,7 @@ from invoice_intake.worker import STALE_UPLOAD_GRACE, Worker, backoff_seconds, b
 from .app_helpers import SAMPLES, database_url
 from .fakes import ScriptedProvider
 from .helpers import IsolatedSettings
+from .webhook_server import Webhook
 
 pytestmark = [pytest.mark.postgres, pytest.mark.redis]
 
@@ -180,5 +182,74 @@ def test_the_api_queue_is_redis(redis_url: str, redis_client: redis.Redis) -> No
     queue.enqueue(invoice_id)
 
     assert redis_client.lrange(queue.ready_key, 0, -1) == [
-        '{"attempt": 1, "invoice_id": "00000000-0000-0000-0000-000000000007"}'
+        '{"attempt": 1, "invoice_id": "00000000-0000-0000-0000-000000000007", "kind": "extract"}'
     ]
+
+
+def _approve(client: TestClient, invoice_id: str) -> None:
+    current = client.get(f"/invoices/{invoice_id}").json()
+    response = client.post(f"/invoices/{invoice_id}/approve", json={"version": current["version"]})
+    assert response.status_code == 200, response.text
+
+
+def test_an_approved_invoice_is_delivered_once_and_marked_exported(
+    client: TestClient, run_worker: Callable[..., Worker], webhook: Webhook
+) -> None:
+    created = _upload(client)
+    run_worker(
+        FakeExtractionProvider(SAMPLES),
+        export_webhook_url=webhook.url,
+        export_webhook_secret="s3cret",
+    )
+    _wait_for(client, created["id"], "needs_review")
+    assert webhook.deliveries == []  # nothing goes out before approval
+
+    _approve(client, created["id"])
+    exported = _wait_for(client, created["id"], "exported")
+
+    (delivery,) = webhook.deliveries
+    payload = json.loads(delivery.body)
+    assert payload["invoice_id"] == created["id"]
+    assert payload["fields"] == exported["fields"]
+    assert delivery.headers["Idempotency-Key"] == created["id"]
+    assert delivery.headers["X-Invoice-Intake-Signature"].startswith("sha256=")
+    assert exported["export"]["state"] == "exported"
+    assert exported["events"][-1]["actor_name"] == "export-service"
+
+
+def test_failed_deliveries_are_retried_and_recorded(
+    client: TestClient, run_worker: Callable[..., Worker], webhook: Webhook
+) -> None:
+    webhook.statuses = [503, 503]
+    created = _upload(client)
+    run_worker(
+        FakeExtractionProvider(SAMPLES),
+        export_webhook_url=webhook.url,
+        export_retry_base_seconds=0,
+        export_max_attempts=5,
+    )
+    _wait_for(client, created["id"], "needs_review")
+
+    _approve(client, created["id"])
+    exported = _wait_for(client, created["id"], "exported")
+
+    assert len(webhook.deliveries) == 3
+    failures = [e for e in exported["events"] if e["action"] == "export_failed"]
+    assert [f["details"]["attempt"] for f in failures] == [1, 2]
+    assert failures[0]["details"]["error"] == "HTTP 503: temporarily unavailable"
+    assert exported["export"]["attempts"] == 2
+
+
+def test_without_a_webhook_approved_invoices_wait(
+    client: TestClient, run_worker: Callable[..., Worker]
+) -> None:
+    created = _upload(client)
+    run_worker(FakeExtractionProvider(SAMPLES))  # no export_webhook_url
+    _wait_for(client, created["id"], "needs_review")
+
+    _approve(client, created["id"])
+    time.sleep(1.5)
+
+    waiting = client.get(f"/invoices/{created['id']}").json()
+    assert waiting["status"] == "approved"
+    assert waiting["export"]["state"] == "pending"

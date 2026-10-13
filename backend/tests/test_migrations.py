@@ -131,3 +131,21 @@ def test_downgrade_below_0004_refuses_to_drop_failed_invoices(clean_database_url
 
     with pytest.raises(RuntimeError, match="failed invoice row"):
         command.downgrade(config, "0003")
+
+
+def test_downgrade_below_0005_refuses_to_drop_export_failures(clean_database_url: str) -> None:
+    config = alembic_config(clean_database_url)
+    command.upgrade(config, "head")
+    invoice = invoice_in(InvoiceStatus.APPROVED)
+    invoice.record_export_failure(
+        attempt=1, error="HTTP 500", final=False, status_code=500, at=at(9)
+    )
+    engine = make_engine(clean_database_url)
+    try:
+        with make_session_factory(engine).begin() as session:
+            SqlInvoiceRepository(session).add(invoice, Document("application/pdf", b"%PDF-1"))
+    finally:
+        engine.dispose()
+
+    with pytest.raises(RuntimeError, match="1 export_failed audit event"):
+        command.downgrade(config, "0004")

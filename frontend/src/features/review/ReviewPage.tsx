@@ -7,8 +7,10 @@ import { ApiError, type Invoice } from "@/api/client";
 import {
   useApprove,
   useEditFields,
+  useHealth,
   useInvoice,
   useReject,
+  useRequestExport,
   useRequestExtraction,
   useReviewQueue,
 } from "@/api/queries";
@@ -91,8 +93,11 @@ function Review({ invoice, onReload }: { invoice: Invoice; onReload: () => Promi
   const approve = useApprove(invoice.id);
   const reject = useReject(invoice.id);
   const retry = useRequestExtraction(invoice.id);
+  const retryExport = useRequestExport(invoice.id);
+  const health = useHealth();
   const queue = useReviewQueue();
-  const busy = edit.isPending || approve.isPending || reject.isPending || retry.isPending;
+  const busy =
+    edit.isPending || approve.isPending || reject.isPending || retry.isPending || retryExport.isPending;
   const editable = invoice.status === "needs_review";
 
   const target = focusTarget(draft, focusKey);
@@ -271,6 +276,13 @@ function Review({ invoice, onReload }: { invoice: Invoice; onReload: () => Promi
               retry.mutate(undefined, {
                 onSuccess: () => toast.success("Queued for another extraction attempt"),
                 onError: (error) => failed(error, "retry"),
+              })
+            }
+            exportConfigured={health.data?.export_configured ?? null}
+            onRetryExport={() =>
+              retryExport.mutate(undefined, {
+                onSuccess: () => toast.success("Queued for another delivery attempt"),
+                onError: (error) => failed(error, "retry the export"),
               })
             }
           />

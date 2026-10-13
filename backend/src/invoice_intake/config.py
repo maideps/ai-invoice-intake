@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     extraction_retry_base_seconds: float = Field(default=5.0, ge=0)
     worker_id: str = "worker"
     worker_sweep_seconds: float = Field(default=60.0, gt=0)
+    # Export of approved invoices (feat-010). No URL: export is off and approved invoices wait.
+    export_webhook_url: str | None = None
+    export_webhook_secret: SecretStr | None = None
+    export_max_attempts: int = Field(default=5, ge=1)
+    export_retry_base_seconds: float = Field(default=10.0, ge=0)
+    export_timeout_seconds: float = Field(default=10.0, gt=0)
 
 
 @lru_cache

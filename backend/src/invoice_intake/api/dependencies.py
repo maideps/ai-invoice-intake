@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import Depends, Header, Request
 
 from invoice_intake.domain import Actor, ActorKind
+from invoice_intake.services.export import ExportService, ExportServiceFactory
 from invoice_intake.services.extraction import ExtractionService, ExtractionServiceFactory
 from invoice_intake.services.intake import IntakeService, IntakeServiceFactory
 from invoice_intake.services.review import ReviewService, ReviewServiceFactory
@@ -32,6 +33,12 @@ def review_service(request: Request) -> Iterator[ReviewService]:
         yield service
 
 
+def export_service(request: Request) -> Iterator[ExportService]:
+    factory: ExportServiceFactory = request.app.state.export_service
+    with factory() as service:
+        yield service
+
+
 def current_user(x_user: Annotated[str | None, Header()] = None) -> Actor:
     """The person acting, from the ``X-User`` header.
 
@@ -48,3 +55,4 @@ IntakeServiceDep = Annotated[IntakeService, Depends(intake_service, scope="funct
 CurrentUser = Annotated[Actor, Depends(current_user)]
 ExtractionServiceDep = Annotated[ExtractionService, Depends(extraction_service, scope="function")]
 ReviewServiceDep = Annotated[ReviewService, Depends(review_service, scope="function")]
+ExportServiceDep = Annotated[ExportService, Depends(export_service, scope="function")]

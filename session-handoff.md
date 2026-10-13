@@ -5,8 +5,8 @@ Fill this at session end for large sessions; keep it current otherwise.
 ## Current Objective
 
 - Goal: build AI Invoice Intake, a portfolio project (FastAPI + PostgreSQL + Redis worker + React/TypeScript, OpenAI extraction behind an interface, human approval before export, all data synthetic) using ai-harness-framework, one feature at a time.
-- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI) and feat-009 (review detail UI) are `passing`. Nothing else is started. feat-010 (export webhook) is next.
-- Branch / commit: `main` (feat-008 `a6474e0` pushed; feat-009 is the next commit), pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
+- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI), feat-009 (review detail UI) and feat-010 (export webhook) are `passing`. Nothing else is started. feat-011 is next.
+- Branch / commit: `main` (feat-009 `af657d5` pushed; feat-010 is the next commit), pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
 
 ## Completed This Session
 
@@ -15,6 +15,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - [x] Wired the backend into the harness gates through `tools/py.mjs` (D-003); `e2e` is an explicit SKIP placeholder (D-004).
 - [x] Session 004: first run on Windows (setup and `npm run check` pass); D-005 (extraction provider chosen by config, default `fake`); feat-002 domain package with arch-007 (domain imports only the standard library); feat-003 sample generator and 12 committed samples (D-006); feat-004 PostgreSQL persistence, migrations and intake API with arch-008 (D-007); feat-005 AI extraction with `fake` and `openai` providers and every model output kept in the audit trail (D-008).
 - [x] Session 005: feat-006 review and approval API with audited edits, version checks and required fields for approval (D-009); feat-007 background extraction worker on a reliable Redis queue with retries and a `failed` status (D-010); feat-008 React dashboard with the live review queue, wired into the harness gates (D-012); feat-009 review screen (PDF with click-to-highlight, confidence, totals check, decisions, timeline, shortcuts) and real Playwright e2e on the full stack (D-013).
+- [x] Session 006: feat-010 export webhook: signed delivery per approval from the same worker (job kinds), retries with `export_failed` audit events, export state derived from the trail, "Retry export", migration 0005, e2e with a local receiver (D-014).
 - [x] Fixed two bugs upstream in `ai-harness-framework` and applied them here with `harness-upgrade`: backup-id collisions (D-021, commit 53eaa48) and adoption-matrix fixtures breaking on customised scripts (D-022, commit 79bd6c4).
 
 ## Verification Evidence
@@ -32,7 +33,8 @@ Fill this at session end for large sessions; keep it current otherwise.
 | Feature gate | `npm run verify-feature -- feat-007` | pass | evidence in `.harness/state/feat-007.json`; 426 backend tests |
 | Feature gate | `npm run verify-feature -- feat-008` | pass | 432 backend + 25 frontend tests; ESLint, tsc, vite build |
 | Feature gate | `npm run verify-feature -- feat-009` | pass, no SKIP | first run with a real e2e layer |
-| End-to-end | `npm run e2e` (containers, API, worker, Vite, Chromium) | 1 passed in ~5 s | no containers, processes or ports left behind |
+| Feature gate | `npm run verify-feature -- feat-010` | pass, no SKIP | 463 backend + 61 frontend tests; evidence in `.harness/state/feat-010.json` |
+| End-to-end | `npm run e2e` (containers, API, worker, Vite, webhook receiver, Chromium) | 1 passed in ~8 s | one signed delivery, invoice shown as exported; nothing left behind |
 | Review screen look | Playwright screenshots 1440 px, light and dark | total `3 627,23` highlighted in the PDF | |
 | Live dashboard | browser pane: Vite + API + worker + dev DB + Redis | queue live-updates, filters, error/retry, light/dark, phone/tablet | processes and containers cleaned up |
 | Live worker | dev PostgreSQL + Redis, API and `npm run dev:worker` as separate processes | upload 201 `uploaded` in ~120 ms; `needs_review` ~3 s later | containers and worker processes cleaned up |
@@ -59,6 +61,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - D-002: stack and scope (invoices, React, synthetic data, AI behind an interface, human approval required).
 - D-003: backend tooling runs through the `tools/py.mjs` launcher wired into the harness scripts.
 - D-004: `e2e` stays a SKIP placeholder until real end-to-end tests exist (planned feat-009 / feat-011).
+- D-014: export via the same worker (job `kind`); payload v1 with `Idempotency-Key`, per-attempt delivery id and HMAC-SHA256 signature; any 2xx succeeds; 5 attempts doubling from 10 s; `export_failed` audit events and a state derived from the trail; `POST /export` to start again; no URL = export off (invoices wait, health says so, sweep sends them later); at least once.
 - D-013: `npm run e2e` = `tools/e2e.mjs`: throwaway PostgreSQL (5434) and Redis (6380), migrations, API (8100), worker, Vite (5174), Playwright; full teardown in `finally` (process trees, containers). Supersedes the D-004 SKIP.
 - D-012: React 19 + TS strict + Vite 7 + Tailwind v4 + shadcn-style primitives + TanStack Query; generated OpenAPI client with drift tests; polling 2 s / 15 s; numbers in viewer locale, words in UI language; dev proxy answers 502 when the API is down; `tools/web.mjs` joins the frontend to the gates; frontend needs Node 20.19+ (harness still 18).
 - D-010: extraction runs in a worker; small reliable queue on redis-py (ready list, delayed zset, per-worker processing list, at-least-once, idempotent steps); attempt = begin / provider call outside any transaction / complete or fail; retries for provider errors and rejected output (3 attempts, 5 s doubling); `failed` status; enqueue after commit plus a periodic sweep; `POST /extract` queues (202).
@@ -75,10 +78,9 @@ Fill this at session end for large sessions; keep it current otherwise.
 - `Invoice` can only be created as a new upload; feat-004 needs a way to rebuild one from stored data and events.
 - `LICENSE` is a CORE file: after every `harness-upgrade`, restore the author line `Copyright (c) 2026 Maidelin Prieto` (D-011).
 - `.github/workflows/ci.yml` is the framework's CI, switched to manual runs only; there is no project CI until feat-011 (D-011).
-- The e2e layer is not verified; do not treat a green `npm run check` as end-to-end evidence yet.
 - `npm run check` needs Docker Desktop running (it is installed on the author's machine but set to start manually). Without it the database tests fail with a message saying so. `docker compose` (feat-011) is still untested.
 - New audit actions must be added to `AuditAction`, `_NOTE_RULES` in `domain/invoice.py` (or as status changes) and the `ck_audit_events_action` check in a new migration, together (0002 and 0003 show the pattern, including a downgrade that refuses to drop events).
-- `npm run check` needs Docker running (backend tests and e2e), plus `npm run setup:frontend` once (npm ci and Playwright's Chromium) and Node 20.19+. The e2e run needs ports 5434, 6380, 8100 and 5174 free.
+- `npm run check` needs Docker running (backend tests and e2e), plus `npm run setup:frontend` once (npm ci and Playwright's Chromium) and Node 20.19+. The e2e run needs ports 5434, 6380, 8100, 8101 and 5174 free. The webhook receiver lives inside `tools/e2e.mjs`, so anything it waits on must be async (a `spawnSync` blocks the receiver).
 - The browser pane in this app shows large emulated viewports at a fraction of their size; for full-resolution UI checks, take screenshots with Playwright's Chromium instead.
 - Frontend tests run under jsdom; three jsdom-vs-Node mismatches are handled in `frontend/src/test/` (Node `FormData`, a declarative `MemoryRouter`, skipped animations). Keep using `renderApp` and `pdfFile`/`testFile` helpers for new tests.
 - After changing the API, run `npm run api:types` (both drift tests fail otherwise).
@@ -100,4 +102,4 @@ Fill this at session end for large sessions; keep it current otherwise.
 
 ## Recommended Next Step
 
-- Start feat-010 (export webhook): sprint contract in `docs/sprints/feat-010.md`, set `.harness/state/feat-010.json` to active. Approved invoices are posted (JSON) to `INVOICE_INTAKE_EXPORT_WEBHOOK_URL` by the worker, with retries and backoff; success moves `approved -> exported` (system), repeated failure records an audited export failure that stays visible in the UI. Reuse the queue and the runner pattern from D-010; consider signing payloads (HMAC). Then `npm run verify-feature -- feat-010`.
+- Start feat-011 (read its entry in `feature_list.json`): sprint contract in `docs/sprints/feat-011.md`, set `.harness/state/feat-011.json` to active. Docker Compose for the whole stack (API, worker, web, PostgreSQL, Redis; export URL optional) and the project's own CI replacing the manual-only framework workflow (D-011); consider switching `tools/e2e.mjs` to the compose stack (D-013). Then `npm run verify-feature -- feat-011`.

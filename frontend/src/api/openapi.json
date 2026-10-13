@@ -379,6 +379,56 @@
         }
       }
     },
+    "/invoices/{invoice_id}/export": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Export Invoice",
+        "description": "Queue another delivery to the export webhook, for example after it failed.",
+        "operationId": "export_invoice_invoices__invoice_id__export_post",
+        "parameters": [
+          {
+            "name": "invoice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Invoice Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown invoice"
+          },
+          "409": {
+            "description": "Not approved"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/invoices/{invoice_id}/fields": {
       "patch": {
         "tags": [
@@ -741,6 +791,56 @@
         ],
         "title": "EditFieldsIn"
       },
+      "ExportOut": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "retrying",
+              "failed",
+              "exported"
+            ],
+            "title": "State"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "exported_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exported At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "attempts",
+          "last_error",
+          "exported_at"
+        ],
+        "title": "ExportOut",
+        "description": "Delivery to the export webhook, for approved and exported invoices."
+      },
       "FieldsOut": {
         "properties": {
           "vendor_name": {
@@ -882,13 +982,18 @@
           "environment": {
             "type": "string",
             "title": "Environment"
+          },
+          "export_configured": {
+            "type": "boolean",
+            "title": "Export Configured"
           }
         },
         "type": "object",
         "required": [
           "status",
           "version",
-          "environment"
+          "environment",
+          "export_configured"
         ],
         "title": "HealthResponse"
       },
@@ -932,6 +1037,16 @@
             ],
             "title": "Confidence"
           },
+          "export": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExportOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "events": {
             "items": {
               "$ref": "#/components/schemas/AuditEventOut"
@@ -949,6 +1064,7 @@
           "uploaded_at",
           "fields",
           "confidence",
+          "export",
           "events"
         ],
         "title": "InvoiceOut"

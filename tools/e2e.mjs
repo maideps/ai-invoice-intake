@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // End-to-end tests on the real stack (D-013): throwaway PostgreSQL and Redis containers, the
-// API, the extraction worker and the Vite dev server, then Playwright in Chromium.
+// API, the worker, the Vite dev server and a local export webhook receiver, then Playwright in
+// Chromium.
 //
 //   node tools/e2e.mjs            (npm run e2e; part of npm run check)
 //
@@ -9,6 +10,7 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { mkdtempSync, openSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,7 +19,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const frontend = path.join(root, "frontend");
 const windows = process.platform === "win32";
 
-const PORTS = { postgres: 5434, redis: 6380, api: 8100, web: 5174 };
+const PORTS = { postgres: 5434, redis: 6380, api: 8100, web: 5174, webhook: 8101 };
+// Synthetic secret for the e2e receiver only; the spec checks the signature with it.
+const WEBHOOK_SECRET = "e2e-webhook-secret";
 const CONTAINERS = { postgres: "invoice-intake-e2e-postgres", redis: "invoice-intake-e2e-redis" };
 const logs = mkdtempSync(path.join(tmpdir(), "invoice-intake-e2e-"));
 const children = [];
@@ -30,7 +34,30 @@ const backendEnv = {
   INVOICE_INTAKE_EXTRACTION_PROVIDER: "fake",
   INVOICE_INTAKE_EXTRACTION_RETRY_BASE_SECONDS: "1",
   INVOICE_INTAKE_WORKER_ID: "e2e",
+  INVOICE_INTAKE_EXPORT_WEBHOOK_URL: `http://127.0.0.1:${PORTS.webhook}/invoices`,
+  INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET: WEBHOOK_SECRET,
+  INVOICE_INTAKE_EXPORT_RETRY_BASE_SECONDS: "1",
 };
+
+/**
+ * The accounting system's side: accepts POST /invoices and lists what it received at
+ * GET /deliveries, so the spec can check what was sent and how often.
+ */
+const deliveries = [];
+const webhook = createServer((request, response) => {
+  if (request.method === "GET" && request.url === "/deliveries") {
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify(deliveries));
+    return;
+  }
+  const chunks = [];
+  request.on("data", (chunk) => chunks.push(chunk));
+  request.on("end", () => {
+    deliveries.push({ path: request.url, headers: request.headers, body: Buffer.concat(chunks).toString("utf8") });
+    response.writeHead(200, { "Content-Type": "text/plain" });
+    response.end("ok");
+  });
+});
 
 function log(message) {
   console.log(`[e2e] ${message}`);
@@ -49,6 +76,15 @@ function command(name, args) {
 function run(name, args, options = {}) {
   const { file, args: argv, shell } = command(name, args);
   return spawnSync(file, argv, { stdio: "inherit", shell, ...options }).status ?? 1;
+}
+
+function runAsync(name, args, options = {}) {
+  const { file, args: argv, shell } = command(name, args);
+  return new Promise((resolve) => {
+    const child = spawn(file, argv, { stdio: "inherit", shell, ...options });
+    child.on("error", () => resolve(1));
+    child.on("exit", (code) => resolve(code ?? 1));
+  });
 }
 
 function quiet(name, args) {
@@ -92,6 +128,7 @@ function cleanUp() {
   if (cleaned) return;
   cleaned = true;
   children.forEach(stop);
+  webhook.close();
   removeContainers();
 }
 process.on("SIGINT", () => {
@@ -143,6 +180,11 @@ async function main() {
     throw new Error("migrations failed");
   }
 
+  await new Promise((resolve, reject) => {
+    webhook.once("error", reject);
+    webhook.listen(PORTS.webhook, "127.0.0.1", resolve);
+  });
+
   log(`starting the API, the worker and the web app (logs in ${logs})`);
   start("api", "node", ["tools/py.mjs", "-m", "uvicorn", "invoice_intake.main:app", "--port", String(PORTS.api)], {
     cwd: root,
@@ -157,9 +199,15 @@ async function main() {
   await waitFor("the web app", answers(`http://localhost:${PORTS.web}/`));
 
   log("running Playwright");
-  return run("npx", ["playwright", "test"], {
+  // Asynchronously: the webhook receiver lives in this process and must keep answering.
+  return runAsync("npx", ["playwright", "test"], {
     cwd: frontend,
-    env: { ...process.env, E2E_BASE_URL: `http://localhost:${PORTS.web}` },
+    env: {
+      ...process.env,
+      E2E_BASE_URL: `http://localhost:${PORTS.web}`,
+      E2E_WEBHOOK_URL: `http://127.0.0.1:${PORTS.webhook}`,
+      E2E_WEBHOOK_SECRET: WEBHOOK_SECRET,
+    },
   });
 }
 

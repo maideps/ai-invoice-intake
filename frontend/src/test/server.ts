@@ -5,7 +5,12 @@ import type { Invoice } from "@/api/client";
 import { STATUSES, type InvoiceStatus } from "@/lib/status";
 
 /** An in-memory stand-in for the API, so component tests run the real fetch and query code. */
-export const db: { invoices: Invoice[]; requests: Request[] } = { invoices: [], requests: [] };
+export const db: {
+  invoices: Invoice[];
+  requests: Request[];
+  exportConfigured: boolean;
+  exportRequests: string[];
+} = { invoices: [], requests: [], exportConfigured: true, exportRequests: [] };
 
 let sequence = 0;
 
@@ -29,6 +34,7 @@ export function makeInvoice(overrides: Partial<Invoice> & { status?: InvoiceStat
       line_items: [],
     },
     confidence: null,
+    export: null,
     events: [],
     ...overrides,
   };
@@ -37,6 +43,8 @@ export function makeInvoice(overrides: Partial<Invoice> & { status?: InvoiceStat
 export function resetDb(): void {
   db.invoices = [];
   db.requests = [];
+  db.exportConfigured = true;
+  db.exportRequests = [];
   sequence = 0;
 }
 
@@ -203,6 +211,25 @@ handlers.push(
     addEvent(found, { from_status: "needs_review", to_status: "rejected", reason: body.reason.trim() });
     found.status = "rejected";
     return HttpResponse.json(found);
+  }),
+
+  http.get("*/api/health", () =>
+    HttpResponse.json({
+      status: "ok",
+      version: "test",
+      environment: "test",
+      export_configured: db.exportConfigured,
+    }),
+  ),
+
+  http.post("*/api/invoices/:id/export", ({ params }) => {
+    const invoice = db.invoices.find((i) => i.id === params.id);
+    if (!invoice) return HttpResponse.json({ detail: "not found" }, { status: 404 });
+    if (invoice.status !== "approved") {
+      return HttpResponse.json({ detail: "only approved invoices are exported" }, { status: 409 });
+    }
+    db.exportRequests.push(invoice.id);
+    return HttpResponse.json(invoice, { status: 202 });
   }),
 
   http.post("*/api/invoices/:id/extract", ({ params }) => {

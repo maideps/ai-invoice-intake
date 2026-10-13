@@ -16,6 +16,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from invoice_intake.infrastructure.database import make_engine, make_session_factory
 
+from .webhook_server import webhook  # noqa: F401  (a fixture: a local export webhook)
+
 BACKEND = Path(__file__).resolve().parents[1]
 POSTGRES_IMAGE = "postgres:16-alpine"
 TABLES = "invoices, invoice_line_items, audit_events, invoice_documents"

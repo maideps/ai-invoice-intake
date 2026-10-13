@@ -258,3 +258,27 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: `npm run check` now ends with a real end-to-end run (about 10 seconds plus startup); the SKIP is gone.
 - Negative: `npm run check` needs Docker and Chromium; the run uses four local ports.
+
+### D-014: Export to a signed webhook, from the same worker
+
+**Date:** 2026-10-13
+**Status:** accepted
+**Context:** feat-010: approved invoices must reach an accounting system, with retries and a visible export status, and nothing may leave before a person approves it. The worker and the reliable queue from D-010 already exist; there is no real accounting system, so a webhook stands in for one.
+**Decision:**
+- One queue and one worker: jobs carry a `kind` (`extract` or `export`); old jobs without one are extraction. Approving queues an export job after the commit (`AfterCommitQueue`).
+- An attempt is three short steps, as for extraction: `begin` (only for `approved`; builds the payload), the HTTP call outside any transaction, then `complete` (`approved -> exported` by the system) or `record_failure`.
+- Payload version 1 (JSON): `payload_version`, `invoice_id`, `filename`, `approved_at`, `approved_by`, `audit_version` and `fields` in the API's JSON format. Headers: `Idempotency-Key` (the invoice id, the same on every attempt), `X-Invoice-Intake-Delivery` (a new id per attempt) and, with a secret, `X-Invoice-Intake-Signature: sha256=<HMAC-SHA256 of the exact body>`.
+- Any 2xx is success. Non-2xx answers (the message keeps the status and up to 200 characters of the body), timeouts and connection errors are failed attempts. Defaults: 5 attempts, waits doubling from 10 s, a 10 s timeout.
+- Each failed attempt is an `export_failed` audit event (only while `approved`, only by the system) with the attempt, the error, the HTTP status and whether it was the last. The export state (`pending`, `retrying`, `failed`, `exported`) is derived from the trail; migration 0005 adds the action and refuses to downgrade while such events exist.
+- `POST /invoices/{id}/export` (202) lets a person start again after the last attempt; 409 for any status other than `approved`.
+- No webhook URL means export is off: the worker skips export jobs, invoices stay `approved`, `GET /health` reports `export_configured: false` and the review screen says so. The periodic sweep re-queues approved invoices that are still pending, so they go out once a URL is set.
+- Delivery is at least once: a crash between the receiver's answer and `complete` sends again. Receivers drop duplicates by `Idempotency-Key`.
+**Alternatives considered:**
+- A separate export worker or queue — Rejected: the queue already has everything needed; a `kind` is less to run and to test.
+- An "export status" column — Rejected: the audit trail already holds every attempt; a derived state cannot disagree with it.
+- Exactly-once delivery (outbox with a receiver acknowledgement protocol) — Rejected: not achievable over a plain webhook; an idempotency key is the standard contract.
+- Sending the original PDF in the payload — Deferred: the fields are what an accounting system books; the document can be linked once there is authentication.
+- Protection against server-side request forgery for the URL — Not needed now: the URL is operator configuration, not user input.
+**Consequences:**
+- Positive: approval is the only way out (the runner refuses anything else, and `approved -> exported` is the only transition to `exported`); every attempt is auditable; the end-to-end run proves one signed delivery per approval.
+- Negative: receivers must de-duplicate; one destination only; an invoice cannot be edited after export; the e2e run needs one more free port (8101).

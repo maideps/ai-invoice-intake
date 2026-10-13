@@ -19,6 +19,7 @@ from invoice_intake.domain import (
 )
 
 from .intake import InvoiceNotFoundError
+from .queue import ExtractionQueue
 
 
 class VersionConflictError(Exception):
@@ -32,8 +33,15 @@ class VersionConflictError(Exception):
 
 
 class ReviewService:
-    def __init__(self, invoices: InvoiceRepository, *, clock: Callable[[], datetime]) -> None:
+    def __init__(
+        self,
+        invoices: InvoiceRepository,
+        queue: ExtractionQueue,
+        *,
+        clock: Callable[[], datetime],
+    ) -> None:
         self._invoices = invoices
+        self._queue = queue
         self._clock = clock
 
     def edit_fields(
@@ -51,8 +59,11 @@ class ReviewService:
         return invoice
 
     def approve(self, invoice_id: UUID, *, version: int, reviewer: Actor) -> Invoice:
-        """Raises ``ApprovalBlockedError`` while required fields are empty."""
-        return self._decide(invoice_id, version, InvoiceStatus.APPROVED, reviewer, reason=None)
+        """Raises ``ApprovalBlockedError`` while required fields are empty. An approved
+        invoice is queued for export (feat-010)."""
+        invoice = self._decide(invoice_id, version, InvoiceStatus.APPROVED, reviewer, reason=None)
+        self._queue.enqueue(invoice_id, "export")
+        return invoice
 
     def reject(self, invoice_id: UUID, *, version: int, reviewer: Actor, reason: str) -> Invoice:
         """Raises ``InvalidInvoiceDataError`` when the reason is blank."""

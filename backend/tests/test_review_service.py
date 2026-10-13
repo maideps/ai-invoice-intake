@@ -19,7 +19,7 @@ from invoice_intake.services.intake import InvoiceNotFoundError
 from invoice_intake.services.review import ReviewService, VersionConflictError
 
 from .domain_helpers import ACTORS, at, invoice_in, new_invoice
-from .fakes import InMemoryInvoiceRepository
+from .fakes import InMemoryInvoiceRepository, RecordingQueue
 
 S = InvoiceStatus
 ALICE = ACTORS[ActorKind.USER]
@@ -29,7 +29,7 @@ PDF = Document("application/pdf", b"%PDF-1.4")
 def _setup(invoice: Invoice) -> tuple[ReviewService, InMemoryInvoiceRepository]:
     repository = InMemoryInvoiceRepository()
     repository.add(invoice, PDF)
-    return ReviewService(repository, clock=lambda: at(30)), repository
+    return ReviewService(repository, RecordingQueue(), clock=lambda: at(30)), repository
 
 
 def _stored(repository: InMemoryInvoiceRepository, invoice_id: UUID) -> Invoice:

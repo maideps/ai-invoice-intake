@@ -16,12 +16,13 @@ Rate each module on a scale of A (excellent) / B (good) / C (acceptable) / D (ne
 | background extraction (queue, runner, worker) | A | A | A | A | B |
 | frontend (shell, review queue) | A | A | B | A | B |
 | frontend review screen and e2e | A | A | A | A | B |
+| export webhook (domain, service, sender, worker, API, UI) | A | A | A | A | B |
 
 ## Summary
 
-- **Overall Quality Grade:** B (backend complete through review with background extraction; dashboard has the queue and the review screen; end-to-end tests run the real stack; no export yet)
+- **Overall Quality Grade:** B (backend complete through review with background extraction; dashboard has the queue and the review screen; end-to-end tests run the real stack; approved invoices are exported to a signed webhook)
 - **Blockers:** none
-- **Areas requiring attention:** no export yet; the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
+- **Areas requiring attention:** no Docker Compose packaging or project CI yet (feat-011); the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
 
 ## Notes
 
@@ -35,6 +36,7 @@ Rate each module on a scale of A (excellent) / B (good) / C (acceptable) / D (ne
 - Session 005 (feat-007) moved extraction to a worker: `failed` status and transitions, the runner's three short transactions, a reliable Redis queue (ready list, delayed set, per-worker processing list), enqueue after commit plus a sweep, and migration 0004. 426 backend tests, including the queue against real Redis and the worker loop end to end (upload returns at once, retries, `failed`, retry on request, sweep), repeated three times without flakiness. The worker test found a real race (a read pairing an old invoice row with newer events), fixed by loading reads in one statement. Performance B: reads join line items and events (a small cartesian product per invoice).
 - Session 005 (feat-008) added the dashboard's first screen: the review queue (status overview and filters, drop-zone upload, live list with animated statuses, loading, empty, stale and error states, theme and "acting as"), the stats endpoint, and the generated API client. 25 frontend tests against an in-memory API plus a schema drift check; 432 backend tests. Checked live in light and dark mode at phone and tablet widths, including the queued-to-needs-review transition without a reload, the API going down and coming back, and filters in the URL. Documentation B (README, ARCHITECTURE.md, D-012; no component docs yet). Performance B: about 209 KB gzipped of JavaScript, split into cached library chunks; polling every 15 s when idle.
 - Session 005 (feat-009) added the review screen: the pdf.js viewer with click-to-highlight, the field editor with confidence bands, a totals check in exact cents, decisions with version checks, a conflict banner, the audit timeline and keyboard shortcuts, plus real end-to-end tests (D-013). 55 frontend tests (pure logic and component tests against an in-memory API with the real rules); the Playwright run passes in about 5 s on the real stack and leaves no containers or processes behind. Checked at full resolution in light and dark mode: the total `3 627,23` is highlighted in the French sample. Performance B: pdf.js is lazy-loaded in its own chunk.
+- Session 006 (feat-010) added export: a signed webhook delivery per approval from the same worker (queue jobs gained a `kind`), retries with the failures in the audit trail, an export state derived from the trail, `POST /invoices/{id}/export`, `export_configured` in health, and migration 0005 (D-014). 463 backend tests, including the sender against a real local HTTP server (signature, non-2xx, timeout, unreachable), "nothing exported before approval" for every other status, and the worker delivering to a local server on PostgreSQL and Redis (with 503s retried); 61 frontend tests; the Playwright run now checks exactly one signed delivery and the "Exported" state. The e2e found a real harness bug: Playwright ran through `spawnSync`, which blocked the in-process receiver. Performance B: one HTTP call per approval, short transactions around it.
 
 ---
 

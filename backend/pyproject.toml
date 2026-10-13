@@ -13,6 +13,7 @@ dependencies = [
     "openai>=1.66",  # Responses API with structured outputs and file inputs
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.5",
+    "httpx2>=2.0",  # export webhook client (also used by the OpenAI SDK)
     "python-multipart>=0.0.9",
     "redis>=5.0",
     "sqlalchemy>=2.0",

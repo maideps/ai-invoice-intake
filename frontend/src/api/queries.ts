@@ -57,7 +57,10 @@ export function useInvoice(id: string) {
       unwrap<Invoice>(api.GET("/invoices/{invoice_id}", { params: { path: { invoice_id: id } } })),
     refetchInterval: (query) => {
       const data = query.state.data;
-      return data ? liveRefresh([data]) : IDLE_REFRESH_MS;
+      if (!data) return IDLE_REFRESH_MS;
+      // An approved invoice on its way to the accounting system: follow it closely too.
+      const exporting = data.export?.state === "pending" || data.export?.state === "retrying";
+      return exporting ? LIVE_REFRESH_MS : liveRefresh([data]);
     },
   });
 }
@@ -129,6 +132,23 @@ export function useRequestExtraction(id: string) {
   return useMutation({
     mutationFn: () => unwrap<Invoice>(api.POST("/invoices/{invoice_id}/extract", path(id))),
     onSuccess,
+  });
+}
+
+export function useRequestExport(id: string) {
+  const onSuccess = useInvoiceUpdated();
+  return useMutation({
+    mutationFn: () => unwrap<Invoice>(api.POST("/invoices/{invoice_id}/export", path(id))),
+    onSuccess,
+  });
+}
+
+/** Service facts the UI adapts to, such as whether an export webhook is configured. */
+export function useHealth() {
+  return useQuery({
+    queryKey: ["health"],
+    queryFn: () => unwrap(api.GET("/health")),
+    staleTime: 60_000,
   });
 }
 
