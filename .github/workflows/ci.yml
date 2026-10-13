@@ -1,45 +1,73 @@
-# The harness framework's own CI (its adoption matrix), inherited from create-harness. It does
-# not set up this project's backend, PostgreSQL or Redis, so it would fail here. Switched off
-# (manual runs only) until feat-011 replaces it with this project's CI (D-011).
-name: ci (harness framework, disabled)
+# This project's CI (D-015), replacing the harness framework's inherited workflow (D-011).
+#   check:   the full harness check (lint, typecheck, tests with PostgreSQL and Redis in
+#            Docker, build, Playwright e2e on the real stack) and the architecture rules
+#   compose: builds the docker compose stack and runs the smoke test against it
+name: ci
 
 on:
-  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [18, 24]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      # Real toolchains so the adoption matrix's python/go/rust cells run
-      # instead of degrading to SKIP.
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"
-      - uses: dtolnay/rust-toolchain@stable
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
 
-      - name: Install python check tools
-        run: pip install ruff pytest
+      - name: Install the backend (venv with dev tools)
+        run: npm run setup:backend
 
-      - name: Full harness check (includes the adoption matrix)
+      - name: Install the frontend and Playwright's Chromium
+        run: npm run setup:frontend
+
+      - name: Install Chromium's system libraries
+        working-directory: frontend
+        run: npx playwright install-deps chromium
+
+      - name: Full check (lint, typecheck, test, build, e2e)
         run: npm run check
 
       - name: Architecture rules
         run: npm run check-arch
 
-      # The Makefile surface delegates to the same runner; prove it on Linux
-      # where make is available (the primary dev machine lacks make).
-      - name: Makefile surface
-        if: matrix.node == '18'
-        run: make check
+      - name: Keep the Playwright traces of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build the stack and smoke-test it
+        run: npm run compose:smoke

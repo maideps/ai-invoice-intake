@@ -198,7 +198,7 @@ This file records significant architectural decisions, their context, alternativ
 ### D-011: Public repository: author in LICENSE, inherited framework CI switched off
 
 **Date:** 2026-10-13
-**Status:** accepted
+**Status:** accepted; the CI part is superseded by D-015 (the project's own workflow since feat-011)
 **Context:** The project is now public at github.com/maideps/ai-invoice-intake. `create-harness` left two things that do not fit a public adopter repo. `LICENSE` named only "AI Harness Framework contributors", and `harness-upgrade` resets it because it is a CORE file. `.github/workflows/ci.yml` is the framework's own CI (its adoption matrix), which does not set up this project's backend, PostgreSQL or Redis.
 **Decision:**
 - `LICENSE` (MIT) names Maidelin Prieto as the copyright holder. It keeps the framework's line, scoped to the harness files, because MIT requires its notice to stay with that code.
@@ -282,3 +282,38 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: approval is the only way out (the runner refuses anything else, and `approved -> exported` is the only transition to `exported`); every attempt is auditable; the end-to-end run proves one signed delivery per approval.
 - Negative: receivers must de-duplicate; one destination only; an invoice cannot be edited after export; the e2e run needs one more free port (8101).
+
+### D-015: Docker Compose for the whole product, and the project's own CI
+
+**Date:** 2026-10-13
+**Status:** accepted (supersedes the CI part of D-011)
+**Context:** feat-011: one command should run the product on synthetic data, and every push should run the checks. The pieces exist (API, worker, migrations, dashboard, export), but the dashboard only had the Vite dev server, and the export needs a receiver. The inherited framework workflow is switched off (D-011).
+**Decision:**
+- `docker-compose.yml` at the root, with these services:
+  - `postgres` and `redis` (health checks, named volumes)
+  - one-shot `migrate`, then `api` (health check) and `worker`
+  - one-shot `seed`, which uploads the 12 samples only when the instance is empty, so it is safe on every start
+  - `accounting`, a demo receiver that checks the HMAC signature and logs and lists deliveries
+  - `web`
+- Only `web` (8080) and `accounting` (9000) are published, and both ports can be changed. PostgreSQL and Redis stay inside the Compose network, so a local PostgreSQL on 5432 is never touched. Export is on and signed by default with a fixed demo secret; the provider stays `fake` unless overridden.
+- One backend image (Python 3.14 slim, non-root) for the API, worker, migrations and helper tools. Dependencies are installed in their own layer from `pyproject.toml`. The samples come from a second build context (`additional_contexts`), so the build context stays `backend/` and the manifest needs no new root files.
+- `web` is nginx serving the Vite build and forwarding `/api/` to the API, with Docker's DNS looked up per request, so the API can restart under it. It answers 502 with a JSON message when the API is down, like the dev proxy. It falls back to `index.html` for client routes, caches hashed assets for a year, allows uploads up to 11 MB, and maps `.mjs` to JavaScript. Without that mapping, pdf.js's worker was refused; the manual check found this.
+- `tools/compose-smoke.mjs` (`npm run compose:smoke`) runs the stack as its own Compose project on other ports and checks it through nginx:
+  - every built asset is served with the right content type
+  - the seeded samples are extracted
+  - an upload through nginx works
+  - its approval leads to one signed delivery
+
+  Afterwards it removes the containers and volumes, also on failure.
+- `.github/workflows/ci.yml`, on every push and pull request, with read-only permissions and older runs on the same branch cancelled:
+  - job `check`: Node 22, Python 3.14, `setup:backend`, `setup:frontend`, Playwright's system libraries, then `npm run check` (tests and e2e use the runner's Docker) and `npm run check-arch`; Playwright traces are uploaded when it fails
+  - job `compose`: the smoke test
+- The Playwright e2e keeps running against the dev servers (D-013), not the Compose stack. It tests the current source without image builds; the smoke test covers the packaging.
+**Alternatives considered:**
+- Running the migrations when the API starts — Rejected: several API replicas would race. A one-shot service is explicit and fails visibly.
+- Serving the built dashboard from FastAPI — Rejected: it mixes concerns and loses nginx's caching and upload handling; the dev proxy shape stays the same in both setups.
+- Switching the e2e to the Compose stack — Rejected for now: every UI change would need an image build first. The smoke test already proves the packaged stack works.
+- Publishing images to a registry — Out of scope (no deployment target).
+**Consequences:**
+- Positive: `docker compose up --build` is the whole product with data on screen in seconds. CI proves both the source (`check`) and the packaging (`compose`).
+- Negative: the backend image is about 350 MB (the OpenAI SDK and uvicorn extras). The demo credentials are fixed, which is fine for synthetic local data but not for deployment. CI needs about 10 minutes for the `check` job.

@@ -1,14 +1,28 @@
 # AI Invoice Intake
 
+[![ci](https://github.com/maideps/ai-invoice-intake/actions/workflows/ci.yml/badge.svg)](https://github.com/maideps/ai-invoice-intake/actions/workflows/ci.yml)
+
 A full-stack, human-in-the-loop invoice automation app. Invoices are uploaded, an AI service extracts structured data, and a review dashboard lets a person approve, correct or reject every result before it is exported to downstream systems. Every AI output and every human decision is recorded in an audit log.
 
 > **Portfolio project.** All invoices are synthetic. The project is built with [ai-harness-framework](https://github.com/maideps/ai-harness-framework): one feature at a time, with layered verification and durable session state in this repository.
 
-**Stack (planned):** FastAPI · PostgreSQL · Redis worker · AI extraction provider chosen by config (OpenAI structured outputs first) · React + TypeScript · Docker Compose · GitHub Actions
+**Stack:** FastAPI · PostgreSQL · Redis worker · AI extraction provider chosen by config (OpenAI structured outputs first) · React + TypeScript · Docker Compose · GitHub Actions
 
 ## Status
 
-Early development. In place so far: the FastAPI service skeleton (`GET /health`, typed settings, layered packages), the invoice domain model and state machine, a synthetic invoice generator with 12 committed samples in [`samples/`](samples/README.md), PostgreSQL persistence with an upload API (`POST /invoices`, list, fetch, audit events, original document), AI extraction in a background worker fed by a Redis queue (with retries and a `failed` status) and the provider chosen by configuration, human review (correct fields, approve or reject, each decision audited with who made it), the React dashboard (a live review queue and a review screen with the document beside the fields), and export of approved invoices to a signed webhook with retries. See [`feature_list.json`](feature_list.json) for the feature plan and [`PROGRESS.md`](PROGRESS.md) for the current state.
+Early development. In place so far: the FastAPI service skeleton (`GET /health`, typed settings, layered packages), the invoice domain model and state machine, a synthetic invoice generator with 12 committed samples in [`samples/`](samples/README.md), PostgreSQL persistence with an upload API (`POST /invoices`, list, fetch, audit events, original document), AI extraction in a background worker fed by a Redis queue (with retries and a `failed` status) and the provider chosen by configuration, human review (correct fields, approve or reject, each decision audited with who made it), the React dashboard (a live review queue and a review screen with the document beside the fields), export of approved invoices to a signed webhook with retries, a one-command Docker Compose stack, and CI on every push. See [`feature_list.json`](feature_list.json) for the feature plan and [`PROGRESS.md`](PROGRESS.md) for the current state.
+
+## Run it with Docker
+
+Needs only Docker (with Compose v2.17 or newer).
+
+```bash
+docker compose up --build
+```
+
+Then open http://localhost:8080. The first start uploads the 12 synthetic sample invoices, and the worker extracts them into "Needs review" within a few seconds. Approve one and it shows "Exported": a demo accounting system received it (`docker compose logs -f accounting` prints each signed delivery; http://localhost:9000/deliveries lists them). Extraction uses the deterministic `fake` provider, so no API key or network is needed; to use OpenAI, start it with `INVOICE_INTAKE_EXTRACTION_PROVIDER=openai INVOICE_INTAKE_OPENAI_API_KEY=...`.
+
+`docker compose down` stops it and keeps the data; `docker compose down -v` also deletes it. Ports and the demo secret can be changed with `INVOICE_INTAKE_WEB_PORT`, `INVOICE_INTAKE_ACCOUNTING_PORT` and `INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET` (see [`docker-compose.yml`](docker-compose.yml)). The database password and secret are fixed demo values: this stack is for local use (D-015).
 
 ## Backend quick start
 
@@ -48,6 +62,8 @@ Configuration comes from `INVOICE_INTAKE_*` environment variables (see [`backend
 `npm run lint`, `typecheck`, `test` and `build` cover the frontend too (ESLint with zero warnings, `tsc`, Vitest + Testing Library + MSW, `vite build`); run `npm run setup:frontend` once first (it also installs Playwright's Chromium).
 
 `npm run e2e` (part of `npm run check`) runs the end-to-end tests on the real stack (D-013): it starts throwaway PostgreSQL and Redis containers, applies the migrations, starts the API, the worker and the web app on their own ports, plus a local webhook receiver, and drives Chromium through upload, extraction, review, a correction and an approval, then checks that exactly one signed delivery reached the receiver and the screen shows the invoice as exported. Everything is torn down afterwards, also on failure.
+
+`npm run compose:smoke` builds the Compose stack as a separate project on other ports (8180, 9180), checks it through nginx (every built asset's content type, the 12 seeded samples extracted, an upload, an approval and its signed export), and removes it again. GitHub Actions runs `npm run check`, `npm run check-arch` and the compose smoke test on every push and pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
 `npm run test` needs Docker running: the database and queue tests start their own `postgres:16-alpine` and `redis:7-alpine` containers and fail with a clear message when Docker is not available. To run everything else without Docker, from `backend/`: `python -m pytest -m "not postgres and not redis"`.
 

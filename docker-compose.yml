@@ -1,0 +1,121 @@
+# The whole product on synthetic data (D-015):
+#
+#   docker compose up --build        then open http://localhost:8080
+#
+# The first start uploads the 12 synthetic samples and the worker extracts them. Approved
+# invoices are exported to "accounting", a demo receiver that checks the signature and logs
+# each delivery (docker compose logs -f accounting; listed at http://localhost:9000/deliveries).
+#
+# For local use only: the database password and the webhook secret below are fixed demo values.
+# Override them, the ports or the extraction provider through environment variables, e.g.
+#   INVOICE_INTAKE_EXTRACTION_PROVIDER=openai INVOICE_INTAKE_OPENAI_API_KEY=sk-... docker compose up
+
+name: invoice-intake
+
+x-backend: &backend
+  build:
+    context: backend
+    additional_contexts:
+      samples: samples
+  image: invoice-intake-backend:local
+  init: true
+  environment: &backend-env
+    INVOICE_INTAKE_ENVIRONMENT: production
+    INVOICE_INTAKE_LOG_LEVEL: ${INVOICE_INTAKE_LOG_LEVEL:-INFO}
+    INVOICE_INTAKE_DATABASE_URL: postgresql+psycopg://invoice_intake:invoice_intake@postgres:5432/invoice_intake
+    INVOICE_INTAKE_REDIS_URL: redis://redis:6379/0
+    INVOICE_INTAKE_EXTRACTION_PROVIDER: ${INVOICE_INTAKE_EXTRACTION_PROVIDER:-fake}
+    INVOICE_INTAKE_OPENAI_API_KEY: ${INVOICE_INTAKE_OPENAI_API_KEY:-}
+    INVOICE_INTAKE_EXPORT_WEBHOOK_URL: ${INVOICE_INTAKE_EXPORT_WEBHOOK_URL:-http://accounting:9000/invoices}
+    INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET: ${INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET:-local-demo-secret}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: invoice_intake
+      POSTGRES_PASSWORD: invoice_intake
+      POSTGRES_DB: invoice_intake
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "invoice_intake", "-d", "invoice_intake"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    <<: *backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "invoice_intake.worker"]
+    environment:
+      <<: *backend-env
+      INVOICE_INTAKE_WORKER_ID: worker-1
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  seed:
+    <<: *backend
+    command: ["python", "tools/seed_samples.py", "--api", "http://api:8000", "--samples", "samples/invoices"]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: "no"
+
+  accounting:
+    <<: *backend
+    command: ["python", "tools/demo_receiver.py", "--port", "9000", "--secret", "${INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET:-local-demo-secret}"]
+    ports:
+      - "${INVOICE_INTAKE_ACCOUNTING_PORT:-9000}:9000"
+    restart: unless-stopped
+
+  web:
+    build: frontend
+    image: invoice-intake-web:local
+    ports:
+      - "${INVOICE_INTAKE_WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:

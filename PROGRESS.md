@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (feat-001 to feat-010 passing; next: feat-011)
+- Current active feature (or none): none (feat-001 to feat-011 passing; next: feat-012)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -118,3 +118,33 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Files or artifacts updated: backend/src/invoice_intake/ (domain/audit.py, domain/invoice.py, services/export.py, services/queue.py, services/review.py, infrastructure/export_webhook.py, infrastructure/queue.py, api/, config.py, main.py, worker.py), backend/migrations/versions/rev_0005_*, backend/tests/, frontend/src/ (api, features/review, test/server.ts), frontend/e2e/review.spec.ts, tools/e2e.mjs, README.md, docs/, DECISIONS.md, PROGRESS.md, session-handoff.md.
 - Known risk or unresolved issue: delivery is at least once (receivers de-duplicate by `Idempotency-Key`); one destination only; the e2e run now also needs port 8101; the acting user is still the trusted `X-User` header.
 - Next best step: feat-011 (Docker Compose packaging and project CI), sprint contract first.
+
+### Session 007 — 2026-10-13
+
+- Goal: feat-011 (Docker Compose and CI).
+- Completed:
+  - Sprint contract `docs/sprints/feat-011.md`.
+  - `docker-compose.yml` with these services:
+    - `postgres` and `redis`, with health checks and volumes
+    - one-shot `migrate`, then `api` (health check) and `worker`
+    - one-shot `seed`, which uploads the 12 samples into an empty instance
+    - `accounting`, a demo receiver that checks signatures
+    - `web`
+
+    Only `web` (8080) and `accounting` (9000) are published, and both ports can be changed.
+  - `backend/Dockerfile`: one image for the API, worker, migrations and tools. Python 3.14 slim, non-root, dependencies cached in their own layer, samples from a second build context. `frontend/Dockerfile`: a Vite build served by nginx. `frontend/nginx.conf`: `/api/` proxy with per-request DNS, a 502 JSON message when the API is down, SPA fallback, long caching for hashed assets, 11 MB uploads, `.mjs` served as JavaScript.
+  - `backend/tools/seed_samples.py` and `backend/tools/demo_receiver.py`, with tests in `tests/test_compose_tools.py`.
+  - `tools/compose-smoke.mjs` (`npm run compose:smoke`): its own Compose project on ports 8180 and 9180. It checks assets, the SPA routes, health, the seeded samples, an upload, an approval and its signed export, then removes everything.
+  - `.github/workflows/ci.yml` replaces the switched-off framework workflow. Job `check` runs `setup:*`, Playwright's system libraries, `npm run check` and `check-arch`, and keeps the traces on failure; job `compose` runs the smoke test.
+  - D-015 (D-011's CI part marked superseded); README "Run it with Docker", CI badge; ARCHITECTURE.md; quality document.
+  - Manual check in the browser pane on `docker compose up --build`:
+    - 12 seeded invoices reached "Needs review" on their own.
+    - The review screen first showed "This PDF couldn't be displayed": nginx served the pdf.js worker (`.mjs`) as `application/octet-stream`. That is fixed, and the smoke test now checks every built asset's content type.
+    - Approving led to "Exported", and the receiver logged the signed delivery.
+    - `docker compose down` takes about 3 s and keeps the volumes.
+- Verification run: `npm run verify-feature -- feat-011` (all layers, real e2e); `npm run check-arch`; `npm run compose:smoke` (about 25 s with cached images); 470 backend tests, ruff, mypy --strict; the non-Docker backend tests also on Linux (`python:3.14-slim`, 380 passed); 61 frontend tests. The GitHub Actions run is checked after the push.
+- Evidence captured: `.harness/state/feat-011.json` (written by verify-feature).
+- Commits: 3845c56 (feat-010, pushed); feat-011 is the next commit.
+- Files or artifacts updated: docker-compose.yml, backend/Dockerfile, backend/.dockerignore, backend/tools/seed_samples.py, backend/tools/demo_receiver.py, backend/tests/test_compose_tools.py, frontend/Dockerfile, frontend/.dockerignore, frontend/nginx.conf, tools/compose-smoke.mjs, package.json (`compose:smoke`), .github/workflows/ci.yml, README.md, docs/, DECISIONS.md, PROGRESS.md, session-handoff.md.
+- Known risk or unresolved issue: the first CI run on GitHub is still to be confirmed; the Compose stack uses fixed demo credentials (local use only); the backend image is about 350 MB.
+- Next best step: feat-012 (README, diagram and demo), sprint contract first.
