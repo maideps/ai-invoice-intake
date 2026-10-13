@@ -36,13 +36,13 @@ WRONG_ACTORS = [
 
 
 def _reason(target: InvoiceStatus) -> str | None:
-    return "not our vendor" if target is S.REJECTED else None
+    return {S.REJECTED: "not our vendor", S.FAILED: "provider kept failing"}.get(target)
 
 
 def test_status_pairs_cover_the_whole_grid() -> None:
-    assert len(ALLOWED) == 5
-    assert len(FORBIDDEN) == 31
-    assert len(WRONG_ACTORS) == 10
+    assert len(ALLOWED) == 8
+    assert len(FORBIDDEN) == 41
+    assert len(WRONG_ACTORS) == 16
 
 
 def test_new_invoice_is_uploaded_with_one_audit_event() -> None:

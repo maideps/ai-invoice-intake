@@ -3,15 +3,13 @@
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
-from invoice_intake.main import create_app
-
-from .helpers import IsolatedSettings
+from .app_helpers import extract_now, make_app
 
 pytestmark = pytest.mark.postgres
 
@@ -22,25 +20,26 @@ BOB = {"X-User": "bob@example.com"}
 
 @pytest.fixture
 def client(engine: Engine) -> Iterator[TestClient]:
-    settings = IsolatedSettings(
-        environment="test", database_url=engine.url.render_as_string(hide_password=False)
-    )
-    with TestClient(create_app(settings)) as client:
+    with TestClient(make_app(engine)) as client:
         yield client
 
 
-def _in_review(client: TestClient, sample: str = "invoice-005.pdf") -> dict[str, Any]:
-    """Upload a sample and extract it (fake provider): the invoice is ready for review."""
-    pdf = SAMPLES / sample
+@pytest.fixture
+def in_review(client: TestClient, engine: Engine) -> dict[str, Any]:
+    """A sample uploaded and extracted (fake provider, as the worker would): ready for review."""
+    pdf = SAMPLES / "invoice-005.pdf"
     created = client.post("/invoices", files={"file": (pdf.name, pdf.read_bytes(), "x/y")})
     invoice_id = created.json()["id"]
-    body: dict[str, Any] = client.post(f"/invoices/{invoice_id}/extract").json()["invoice"]
+    extract_now(engine, UUID(invoice_id))
+    body: dict[str, Any] = client.get(f"/invoices/{invoice_id}").json()
     assert body["status"] == "needs_review"
     return body
 
 
-def test_correct_then_approve_leaves_a_complete_audit_trail(client: TestClient) -> None:
-    invoice = _in_review(client)
+def test_correct_then_approve_leaves_a_complete_audit_trail(
+    client: TestClient, in_review: dict[str, Any]
+) -> None:
+    invoice = in_review
     old_total = invoice["fields"]["total"]
 
     edited = client.patch(
@@ -71,8 +70,8 @@ def test_correct_then_approve_leaves_a_complete_audit_trail(client: TestClient) 
     }
 
 
-def test_reject_with_a_reason(client: TestClient) -> None:
-    invoice = _in_review(client)
+def test_reject_with_a_reason(client: TestClient, in_review: dict[str, Any]) -> None:
+    invoice = in_review
 
     response = client.post(
         f"/invoices/{invoice['id']}/reject",
@@ -89,8 +88,10 @@ def test_reject_with_a_reason(client: TestClient) -> None:
     )
 
 
-def test_stale_version_is_a_conflict_and_changes_nothing(client: TestClient) -> None:
-    invoice = _in_review(client)
+def test_stale_version_is_a_conflict_and_changes_nothing(
+    client: TestClient, in_review: dict[str, Any]
+) -> None:
+    invoice = in_review
     path = f"/invoices/{invoice['id']}"
     client.patch(f"{path}/fields", json={"version": invoice["version"], "fields": {"tax": "1.00"}})
 
@@ -101,8 +102,10 @@ def test_stale_version_is_a_conflict_and_changes_nothing(client: TestClient) -> 
     assert client.get(path).json()["status"] == "needs_review"
 
 
-def test_decisions_on_a_finished_invoice_are_conflicts(client: TestClient) -> None:
-    invoice = _in_review(client)
+def test_decisions_on_a_finished_invoice_are_conflicts(
+    client: TestClient, in_review: dict[str, Any]
+) -> None:
+    invoice = in_review
     path = f"/invoices/{invoice['id']}"
     rejected = client.post(
         f"{path}/reject", json={"version": invoice["version"], "reason": "wrong"}
@@ -118,8 +121,10 @@ def test_decisions_on_a_finished_invoice_are_conflicts(client: TestClient) -> No
         assert "rejected" in response.json()["detail"]
 
 
-def test_invalid_edits_are_422_with_the_reasons(client: TestClient) -> None:
-    invoice = _in_review(client)
+def test_invalid_edits_are_422_with_the_reasons(
+    client: TestClient, in_review: dict[str, Any]
+) -> None:
+    invoice = in_review
 
     response = client.patch(
         f"/invoices/{invoice['id']}/fields",
@@ -133,8 +138,8 @@ def test_invalid_edits_are_422_with_the_reasons(client: TestClient) -> None:
     }
 
 
-def test_approval_needs_the_key_fields(client: TestClient) -> None:
-    invoice = _in_review(client)
+def test_approval_needs_the_key_fields(client: TestClient, in_review: dict[str, Any]) -> None:
+    invoice = in_review
     path = f"/invoices/{invoice['id']}"
     cleared = client.patch(
         f"{path}/fields",
@@ -150,8 +155,8 @@ def test_approval_needs_the_key_fields(client: TestClient) -> None:
     }
 
 
-def test_rejection_needs_a_reason(client: TestClient) -> None:
-    invoice = _in_review(client)
+def test_rejection_needs_a_reason(client: TestClient, in_review: dict[str, Any]) -> None:
+    invoice = in_review
 
     response = client.post(
         f"/invoices/{invoice['id']}/reject", json={"version": invoice["version"], "reason": " "}
@@ -180,7 +185,9 @@ def test_unknown_invoice_is_404(
 @pytest.mark.parametrize(
     "body", [{}, {"version": 0}, {"version": "three"}], ids=["missing", "zero", "text"]
 )
-def test_version_is_required(client: TestClient, body: dict[str, Any]) -> None:
-    invoice = _in_review(client)
+def test_version_is_required(
+    client: TestClient, body: dict[str, Any], in_review: dict[str, Any]
+) -> None:
+    invoice = in_review
 
     assert client.post(f"/invoices/{invoice['id']}/approve", json=body).status_code == 422

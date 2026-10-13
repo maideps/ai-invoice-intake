@@ -23,7 +23,7 @@ from invoice_intake.infrastructure.extraction import (
     ProviderConfigurationError,
     make_extraction_provider,
 )
-from invoice_intake.main import create_app
+from invoice_intake.worker import build_worker
 
 from .helpers import IsolatedSettings
 
@@ -101,13 +101,13 @@ def test_factory_builds_the_openai_provider_with_a_key() -> None:
         ({"fake_samples_dir": Path("does/not/exist")}, "INVOICE_INTAKE_FAKE_SAMPLES_DIR"),
     ],
 )
-def test_bad_provider_settings_stop_the_app_at_startup(
+def test_bad_provider_settings_stop_the_worker_at_startup(
     settings: dict[str, Any], message: str
 ) -> None:
     with pytest.raises(ProviderConfigurationError, match=message):
         make_extraction_provider(IsolatedSettings(**settings))
     with pytest.raises(ProviderConfigurationError, match=message):
-        create_app(IsolatedSettings(**settings))
+        build_worker(IsolatedSettings(**settings))
 
 
 def test_provider_settings_come_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:

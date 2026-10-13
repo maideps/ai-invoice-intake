@@ -1,4 +1,4 @@
-"""Invoice endpoints: upload, list, fetch, audit trail, original document and extraction.
+"""Invoice endpoints: upload, list, fetch, audit trail, original document, queue extraction.
 
 Handlers are plain functions: FastAPI runs them in a worker thread, so the blocking database
 calls do not stall the event loop.
@@ -10,7 +10,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, Query, Request, Response, UploadFile
 
-from invoice_intake.domain import ExtractionProviderError, InvoiceStatus
+from invoice_intake.domain import InvoiceStatus
 from invoice_intake.services.extraction import NotExtractableError
 from invoice_intake.services.intake import (
     EmptyUploadError,
@@ -21,7 +21,7 @@ from invoice_intake.services.intake import (
 )
 
 from .dependencies import CurrentUser, ExtractionServiceDep, IntakeServiceDep
-from .schemas import AuditEventOut, ExtractionOut, InvoiceOut, InvoicePageOut
+from .schemas import AuditEventOut, InvoiceOut, InvoicePageOut
 
 T = TypeVar("T")
 
@@ -89,30 +89,25 @@ def get_invoice_document(invoice_id: UUID, service: IntakeServiceDep) -> Respons
 
 @router.post(
     "/{invoice_id}/extract",
-    response_model=ExtractionOut,
+    status_code=202,
+    response_model=InvoiceOut,
     responses={
         404: {"description": "Unknown invoice"},
         409: {"description": "The invoice is past extraction"},
-        502: {"description": "The extraction provider failed; nothing was recorded"},
     },
 )
-def extract_invoice(invoice_id: UUID, service: ExtractionServiceDep) -> ExtractionOut:
-    """Run AI extraction now. Valid output moves the invoice to ``needs_review``; invalid
-    output is recorded in the audit trail (``accepted: false``) and the invoice stays in
-    ``extracting``."""
+def extract_invoice(
+    invoice_id: UUID, service: ExtractionServiceDep, user: CurrentUser
+) -> InvoiceOut:
+    """Queue the invoice for the extraction worker. Uploads are queued automatically; use this
+    to retry a ``failed`` invoice (recorded as your decision) or to nudge a stuck one."""
     try:
-        outcome = service.extract(invoice_id)
+        invoice = service.request(invoice_id, requested_by=user)
     except InvoiceNotFoundError as error:
         raise HTTPException(404, str(error)) from error
     except NotExtractableError as error:
         raise HTTPException(409, str(error)) from error
-    except ExtractionProviderError as error:
-        raise HTTPException(502, str(error)) from error
-    return ExtractionOut(
-        accepted=outcome.accepted,
-        errors=list(outcome.errors),
-        invoice=InvoiceOut.of(outcome.invoice),
-    )
+    return InvoiceOut.of(invoice)
 
 
 def _found(lookup: Callable[[UUID], T], invoice_id: UUID) -> T:

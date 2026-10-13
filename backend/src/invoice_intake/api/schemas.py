@@ -138,12 +138,6 @@ class InvoicePageOut(BaseModel):
         )
 
 
-class ExtractionOut(BaseModel):
-    accepted: bool
-    errors: list[str]
-    invoice: InvoiceOut
-
-
 # Request bodies for review. `version` is the invoice version the reviewer last saw.
 
 

@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -253,3 +253,27 @@ def test_database_requires_status_columns_only_for_status_changes(
             sessions.begin() as session,
         ):
             session.execute(insert, {"id": invoice.id, "action": action, "to": to_status})
+
+
+def test_reads_load_an_invoice_in_one_statement(sessions: sessionmaker[Session]) -> None:
+    # One statement means one snapshot: a concurrent save can never pair an old invoice row
+    # with newer audit events (the worker test once caught exactly that as a 500).
+    invoice = invoice_in(S.NEEDS_REVIEW)
+    _store(sessions, invoice)
+    statements: list[str] = []
+
+    def count(*args: object) -> None:
+        statements.append(str(args[2]))
+
+    with sessions() as session:
+        engine = session.get_bind()
+        event.listen(engine, "before_cursor_execute", count)
+        try:
+            SqlInvoiceRepository(session).get(invoice.id)
+            got_one = len(statements)
+            SqlInvoiceRepository(session).list_page(status=None, limit=10, offset=0)
+        finally:
+            event.remove(engine, "before_cursor_execute", count)
+
+    assert got_one == 1
+    assert len(statements) == 3  # get, then list: count + one page query

@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-5.4-mini"
     openai_timeout_seconds: float = Field(default=60.0, gt=0)
     fake_samples_dir: Path = REPO_ROOT / "samples" / "invoices"
+    # Background extraction (D-010).
+    redis_url: str = "redis://localhost:6379/0"
+    extraction_max_attempts: int = Field(default=3, ge=1)
+    extraction_retry_base_seconds: float = Field(default=5.0, ge=0)
+    worker_id: str = "worker"
+    worker_sweep_seconds: float = Field(default=60.0, gt=0)
 
 
 @lru_cache

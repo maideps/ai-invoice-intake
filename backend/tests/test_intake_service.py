@@ -14,7 +14,7 @@ from invoice_intake.services.intake import (
 )
 
 from .domain_helpers import ACTORS, at
-from .fakes import InMemoryInvoiceRepository
+from .fakes import InMemoryInvoiceRepository, RecordingQueue
 
 PDF = b"%PDF-1.4\n%fake but starts like a PDF\n"
 PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 16
@@ -23,9 +23,27 @@ USER = ACTORS[ActorKind.USER]
 
 
 def _service(limit: int = 1000) -> tuple[IntakeService, InMemoryInvoiceRepository]:
-    repository = InMemoryInvoiceRepository()
+    service, repository, _ = _service_and_queue(limit)
+    return service, repository
+
+
+def _service_and_queue(
+    limit: int = 1000,
+) -> tuple[IntakeService, InMemoryInvoiceRepository, RecordingQueue]:
+    repository, queue = InMemoryInvoiceRepository(), RecordingQueue()
     _: InvoiceRepository = repository  # the fake must satisfy the domain interface
-    return IntakeService(repository, clock=lambda: at(0), max_upload_bytes=limit), repository
+    service = IntakeService(repository, queue, clock=lambda: at(0), max_upload_bytes=limit)
+    return service, repository, queue
+
+
+def test_an_accepted_upload_is_queued_for_extraction() -> None:
+    service, _, queue = _service_and_queue()
+
+    invoice = service.upload(filename="a.pdf", content=PDF, uploaded_by=USER)
+    with pytest.raises(UnsupportedFileTypeError):
+        service.upload(filename="b.pdf", content=b"text", uploaded_by=USER)
+
+    assert queue.queued == [invoice.id]
 
 
 def test_upload_stores_an_uploaded_invoice_with_its_document() -> None:

@@ -115,3 +115,19 @@ def test_downgrade_below_0003_refuses_to_drop_reviewer_edits(clean_database_url:
 
     with pytest.raises(RuntimeError, match="1 fields_edited audit event"):
         command.downgrade(config, "0002")
+
+
+def test_downgrade_below_0004_refuses_to_drop_failed_invoices(clean_database_url: str) -> None:
+    config = alembic_config(clean_database_url)
+    command.upgrade(config, "head")
+    engine = make_engine(clean_database_url)
+    try:
+        with make_session_factory(engine).begin() as session:
+            SqlInvoiceRepository(session).add(
+                invoice_in(InvoiceStatus.FAILED), Document("application/pdf", b"%PDF-1")
+            )
+    finally:
+        engine.dispose()
+
+    with pytest.raises(RuntimeError, match="failed invoice row"):
+        command.downgrade(config, "0003")

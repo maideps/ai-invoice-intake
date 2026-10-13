@@ -79,3 +79,13 @@ class ScriptedProvider:
         if isinstance(output, Exception):
             raise output
         return RawExtraction(self.name, "test-model", output)
+
+
+class RecordingQueue:
+    """An ``ExtractionQueue`` that only remembers what was queued."""
+
+    def __init__(self) -> None:
+        self.queued: list[UUID] = []
+
+    def enqueue(self, invoice_id: UUID) -> None:
+        self.queued.append(invoice_id)

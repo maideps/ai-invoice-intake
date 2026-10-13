@@ -4,7 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from invoice_intake.domain import (
     Actor,
@@ -22,6 +22,12 @@ from invoice_intake.domain import (
 
 from .tables import AuditEventRow, DocumentRow, InvoiceRow, LineItemRow
 
+# Reads load an invoice with its line items and events in ONE statement. Under PostgreSQL's
+# default isolation (read committed) every statement sees its own snapshot, so separate queries
+# could pair the invoice row from before a concurrent save with events from after it.
+_IN_ONE_SNAPSHOT = (joinedload(InvoiceRow.line_items), joinedload(InvoiceRow.events))
+# save() locks the invoice row first, so nothing changes under it and separate queries are fine
+# (FOR UPDATE cannot be combined with the outer joins of joinedload).
 _WITH_CHILDREN = (selectinload(InvoiceRow.line_items), selectinload(InvoiceRow.events))
 
 
@@ -57,7 +63,10 @@ class SqlInvoiceRepository:
         self._session.flush()
 
     def get(self, invoice_id: UUID) -> Invoice | None:
-        row = self._session.get(InvoiceRow, invoice_id, options=_WITH_CHILDREN)
+        query = select(InvoiceRow).where(InvoiceRow.id == invoice_id).options(*_IN_ONE_SNAPSHOT)
+        row = (
+            self._session.scalars(query.execution_options(populate_existing=True)).unique().first()
+        )
         return None if row is None else _to_domain(row)
 
     def list_page(self, *, status: InvoiceStatus | None, limit: int, offset: int) -> InvoicePage:
@@ -66,11 +75,12 @@ class SqlInvoiceRepository:
             query = query.where(InvoiceRow.status == status.value)
         total = self._session.scalar(select(func.count()).select_from(query.subquery())) or 0
         rows = self._session.scalars(
-            query.options(*_WITH_CHILDREN)
+            query.options(*_IN_ONE_SNAPSHOT)
             .order_by(InvoiceRow.uploaded_at.desc(), InvoiceRow.id.desc())
             .limit(limit)
             .offset(offset)
-        )
+            .execution_options(populate_existing=True)
+        ).unique()
         return InvoicePage(items=tuple(_to_domain(row) for row in rows), total=total)
 
     def save(self, invoice: Invoice) -> None:

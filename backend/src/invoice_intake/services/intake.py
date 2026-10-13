@@ -14,6 +14,8 @@ from invoice_intake.domain import (
     InvoiceStatus,
 )
 
+from .queue import ExtractionQueue
+
 # Accepted uploads, recognised by their first bytes; the client's content type is not trusted.
 SIGNATURES: tuple[tuple[bytes, str], ...] = (
     (b"%PDF-", "application/pdf"),
@@ -57,16 +59,19 @@ class IntakeService:
     def __init__(
         self,
         invoices: InvoiceRepository,
+        queue: ExtractionQueue,
         *,
         clock: Callable[[], datetime],
         max_upload_bytes: int,
     ) -> None:
         self._invoices = invoices
+        self._queue = queue
         self._clock = clock
         self._max_upload_bytes = max_upload_bytes
 
     def upload(self, *, filename: str | None, content: bytes, uploaded_by: Actor) -> Invoice:
-        """Validate the file and store it as a new invoice in ``uploaded`` status."""
+        """Validate the file, store it as a new invoice in ``uploaded`` status, and queue it
+        for extraction."""
         if not content:
             raise EmptyUploadError("the file is empty")
         if len(content) > self._max_upload_bytes:
@@ -79,6 +84,7 @@ class IntakeService:
             filename=clean_filename(filename), uploaded_by=uploaded_by, uploaded_at=self._clock()
         )
         self._invoices.add(invoice, Document(content_type=content_type, content=content))
+        self._queue.enqueue(invoice.id)
         return invoice
 
     def get(self, invoice_id: UUID) -> Invoice:

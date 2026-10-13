@@ -50,6 +50,13 @@ PATHS: dict[InvoiceStatus, list[InvoiceStatus]] = {
         InvoiceStatus.APPROVED,
         InvoiceStatus.EXPORTED,
     ],
+    InvoiceStatus.FAILED: [InvoiceStatus.EXTRACTING, InvoiceStatus.FAILED],
+}
+
+# Statuses that need a reason, and the one the helpers give.
+REASONS = {
+    InvoiceStatus.REJECTED: "duplicate of an earlier invoice",
+    InvoiceStatus.FAILED: "provider failed 3 times",
 }
 
 
@@ -79,6 +86,6 @@ def invoice_in(status: InvoiceStatus) -> Invoice:
             target,
             actor=actor_for(invoice.status, target),
             at=at(minute),
-            reason="duplicate of an earlier invoice" if target is InvoiceStatus.REJECTED else None,
+            reason=REASONS.get(target),
         )
     return invoice

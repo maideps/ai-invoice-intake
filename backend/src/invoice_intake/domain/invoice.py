@@ -374,6 +374,8 @@ class Invoice:
         reason = (reason or "").strip() or None
         if target is InvoiceStatus.REJECTED and not reason:
             raise InvalidInvoiceDataError("a rejection needs a reason")
+        if target is InvoiceStatus.FAILED and not reason:
+            raise InvalidInvoiceDataError("a failure needs a reason")
         if target is InvoiceStatus.APPROVED and self.missing_for_approval:
             raise ApprovalBlockedError(self.missing_for_approval)
         require_aware(at, "at")

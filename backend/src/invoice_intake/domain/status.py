@@ -2,6 +2,8 @@
 
     uploaded -> extracting -> needs_review -> approved -> exported
                               needs_review -> rejected
+                extracting -> failed -> extracting   (a person asks for a retry)
+                              failed -> rejected     (a person gives up on it)
 
 Approval and rejection are human decisions: AI output is a draft until a user acts on it.
 """
@@ -18,12 +20,16 @@ class InvoiceStatus(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     EXPORTED = "exported"
+    FAILED = "failed"  # extraction gave up after its retries
 
 
 # For each status, the statuses it may move to and the actor kind allowed to make that move.
 TRANSITIONS: dict[InvoiceStatus, dict[InvoiceStatus, ActorKind]] = {
     InvoiceStatus.UPLOADED: {InvoiceStatus.EXTRACTING: ActorKind.SYSTEM},
-    InvoiceStatus.EXTRACTING: {InvoiceStatus.NEEDS_REVIEW: ActorKind.SYSTEM},
+    InvoiceStatus.EXTRACTING: {
+        InvoiceStatus.NEEDS_REVIEW: ActorKind.SYSTEM,
+        InvoiceStatus.FAILED: ActorKind.SYSTEM,
+    },
     InvoiceStatus.NEEDS_REVIEW: {
         InvoiceStatus.APPROVED: ActorKind.USER,
         InvoiceStatus.REJECTED: ActorKind.USER,
@@ -31,6 +37,10 @@ TRANSITIONS: dict[InvoiceStatus, dict[InvoiceStatus, ActorKind]] = {
     InvoiceStatus.APPROVED: {InvoiceStatus.EXPORTED: ActorKind.SYSTEM},
     InvoiceStatus.REJECTED: {},
     InvoiceStatus.EXPORTED: {},
+    InvoiceStatus.FAILED: {
+        InvoiceStatus.EXTRACTING: ActorKind.USER,
+        InvoiceStatus.REJECTED: ActorKind.USER,
+    },
 }
 
 

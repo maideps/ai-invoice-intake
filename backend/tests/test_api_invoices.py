@@ -8,9 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
-from invoice_intake.main import create_app
-
-from .helpers import IsolatedSettings
+from .app_helpers import make_app
+from .fakes import RecordingQueue
 
 pytestmark = pytest.mark.postgres
 
@@ -19,14 +18,26 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"\0" * 32
 
 
 @pytest.fixture
-def client(engine: Engine) -> Iterator[TestClient]:
-    settings = IsolatedSettings(
-        environment="test",
-        database_url=engine.url.render_as_string(hide_password=False),
-        max_upload_bytes=64 * 1024,
-    )
-    with TestClient(create_app(settings)) as client:
+def queue() -> RecordingQueue:
+    return RecordingQueue()
+
+
+@pytest.fixture
+def client(engine: Engine, queue: RecordingQueue) -> Iterator[TestClient]:
+    with TestClient(make_app(engine, queue, max_upload_bytes=64 * 1024)) as client:
         yield client
+
+
+def test_upload_is_queued_for_extraction_and_returns_at_once(
+    client: TestClient, queue: RecordingQueue
+) -> None:
+    created = client.post(
+        "/invoices", files={"file": (SAMPLE.name, SAMPLE.read_bytes(), "application/pdf")}
+    ).json()
+    client.post("/invoices", files={"file": ("bad.txt", b"not an invoice", "text/plain")})
+
+    assert created["status"] == "uploaded"  # extraction happens later, in the worker
+    assert [str(invoice_id) for invoice_id in queue.queued] == [created["id"]]
 
 
 def test_upload_a_sample_then_read_it_back_with_its_audit_event(client: TestClient) -> None:

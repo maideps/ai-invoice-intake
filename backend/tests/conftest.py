@@ -8,6 +8,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+import redis
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import Engine, text
@@ -73,3 +74,40 @@ def engine(migrated_url: str) -> Iterator[Engine]:
 @pytest.fixture
 def sessions(engine: Engine) -> sessionmaker[Session]:
     return make_session_factory(engine)
+
+
+REDIS_IMAGE = "redis:7-alpine"
+
+
+@pytest.fixture(scope="session")
+def redis_url() -> Iterator[str]:
+    """URL of a fresh Redis container for this test session (same Docker rule as PostgreSQL)."""
+    from testcontainers.community.redis import RedisContainer
+
+    try:
+        container = RedisContainer(REDIS_IMAGE)
+        container.start()
+    except Exception as error:
+        pytest.fail(
+            "Redis queue tests need Docker running: testcontainers could not start "
+            f"{REDIS_IMAGE} ({type(error).__name__}: {error}). Start Docker Desktop and rerun, "
+            'or run only the other tests with: pytest -m "not postgres and not redis"',
+            pytrace=False,
+        )
+    try:
+        host = container.get_container_host_ip()
+        yield f"redis://{host}:{container.get_exposed_port(6379)}/0"
+    finally:
+        container.stop()
+
+
+@pytest.fixture
+def redis_client(redis_url: str) -> Iterator[redis.Redis]:
+    """A client on an emptied database; emptied again afterwards."""
+    client = redis.Redis.from_url(redis_url, decode_responses=True)
+    client.flushdb()
+    try:
+        yield client
+    finally:
+        client.flushdb()
+        client.close()

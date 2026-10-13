@@ -9,7 +9,7 @@ from invoice_intake.main import create_app
 from invoice_intake.services.intake import IntakeService
 
 from .domain_helpers import at
-from .fakes import InMemoryInvoiceRepository
+from .fakes import InMemoryInvoiceRepository, RecordingQueue
 from .helpers import IsolatedSettings
 
 PDF = b"%PDF-1.4\n%test\n"
@@ -24,11 +24,17 @@ def _client(*, fail_commit: bool = False) -> tuple[TestClient, InMemoryInvoiceRe
 
     @contextmanager
     def factory() -> Iterator[IntakeService]:
-        yield IntakeService(repository, clock=lambda: at(0), max_upload_bytes=1000)
+        yield IntakeService(
+            repository, RecordingQueue(), clock=lambda: at(0), max_upload_bytes=1000
+        )
         if fail_commit:
             raise CommitFailed("database went away during commit")
 
-    app = create_app(IsolatedSettings(environment="test"), intake_service=factory)
+    app = create_app(
+        IsolatedSettings(environment="test"),
+        intake_service=factory,
+        extraction_queue=RecordingQueue(),
+    )
     return TestClient(app, raise_server_exceptions=False), repository
 
 

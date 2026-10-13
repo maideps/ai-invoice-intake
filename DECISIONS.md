@@ -136,7 +136,7 @@ This file records significant architectural decisions, their context, alternativ
 - `fake` provider: it recognises a document by SHA-256 among the committed samples and returns their ground truth with stable, varied confidence. Unknown documents get empty fields and zero confidence.
 - `openai` provider: Responses API with a strict `json_schema` format and `store=False`. The document is sent inline (PDF as `input_file`, images as `input_image`). The default model is `gpt-5.4-mini`, set by `INVOICE_INTAKE_OPENAI_MODEL`. Its confidence is the model's own estimate.
 - Migration 0002 adds the column and the checks. Its downgrade refuses while extraction events exist, because the trail is append-only.
-- `POST /invoices/{id}/extract` runs extraction on request until the worker (feat-007) does it automatically.
+- `POST /invoices/{id}/extract` runs extraction on request until the worker (feat-007) does it automatically. (Superseded by D-010: it now queues and returns 202.)
 **Alternatives considered:**
 - Let each provider validate its own output — Rejected: rules would drift between providers, and rejections would not be recorded the same way.
 - Drop invalid output after logging it — Rejected: the audit log is the record of what the model said; a rejected answer is evidence too.
@@ -165,3 +165,32 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: no silent overwrites; the trail answers "who changed what, from what, to what"; export can rely on the key fields being present.
 - Negative: clients must keep the version and reload after a 409; the required-field list is a product rule that may need to become configurable.
+
+### D-010: Extraction runs in a worker fed by a small reliable queue on Redis
+
+**Date:** 2026-10-13
+**Status:** accepted
+**Context:** feat-007 moves extraction out of the request: uploads must return at once, provider failures must be retried, and an invoice must not be lost if a process dies. The author develops on Windows, which has neither `os.fork` nor `SIGALRM`. A model call can take many seconds and must not hold a database transaction open.
+**Decision:**
+- A worker process (`python -m invoice_intake.worker`, `npm run dev:worker`) takes jobs `{invoice_id, attempt}` from Redis.
+- The queue is written directly on redis-py, about 100 lines in `infrastructure/queue.py`:
+  - a ready list (`LPUSH`, and `BLMOVE` from the right)
+  - a delayed sorted set for retries, moved to the ready list atomically by a Lua script
+  - a per-worker processing list that `recover()` drains back to the queue on startup
+  Delivery is at least once.
+- Every extraction step is idempotent. An invoice past extraction, or one that no longer exists, makes the job a no-op (`SKIPPED`).
+- An attempt is three short transactions: `begin`, the provider call outside any transaction, then `complete` or `fail`.
+- Retries cover both provider errors and rejected output, up to `INVOICE_INTAKE_EXTRACTION_MAX_ATTEMPTS` (default 3), waiting `base × 2^(attempt-1)` seconds between attempts (base 5). After the last one the invoice moves `extracting → failed` by `system`, with the attempt count and the last problem as the reason.
+- New transitions: `failed → extracting` (a person asks for a retry through `POST /invoices/{id}/extract`, which now returns 202 and only queues) and `failed → rejected` (a person gives up on it, with a reason). A move to `failed` needs a reason.
+- The API puts a job on the queue only after its transaction has committed (`AfterCommitQueue`). If Redis is unreachable, the upload still succeeds; the worker's sweep, at start and every `INVOICE_INTAKE_WORKER_SWEEP_SECONDS`, re-queues invoices left in `uploaded` for more than 30 seconds.
+- Migration 0004 adds `failed` to the status checks. Its downgrade refuses while failed invoices or events exist.
+- Tests run against a throwaway `redis:7-alpine` container and, like PostgreSQL, fail rather than skip without Docker. The worker end-to-end tests run the real loop in a thread.
+**Alternatives considered:**
+- RQ — Rejected: its worker forks and uses `SIGALRM` for timeouts, neither of which exists on Windows; `SimpleWorker` still needs workarounds.
+- Celery — Rejected: far more machinery (broker plus result backend, configuration surface) than one job type needs.
+- Dramatiq or arq — Viable, but arq is asyncio-first (the services are sync), and either way the retry policy and audit trail stay in our code, so a library would add a dependency without removing much.
+- Use PostgreSQL as the queue (`SELECT … FOR UPDATE SKIP LOCKED`) — A good option, but the feature asked for Redis, and keeping the queue separate shows the hand-off between the services.
+- Transactional outbox — Stronger than enqueue-after-commit plus the sweep, but more moving parts; the sweep gives the same eventual result here.
+**Consequences:**
+- Positive: uploads are instant; no job is lost on a crash or a Redis outage at upload time; the same code runs on Windows, Linux and in Docker; retries and failures are visible in the audit trail.
+- Negative: we own the queue code (kept small and tested against real Redis); a job may run twice (harmless, by design); each worker needs its own `INVOICE_INTAKE_WORKER_ID` when several run at once; `npm run check` needs Docker for both PostgreSQL and Redis.

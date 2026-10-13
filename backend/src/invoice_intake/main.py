@@ -1,6 +1,7 @@
 """Application factory and ASGI entry point.
 
-This is the composition root: the only module that connects the API to infrastructure.
+This is the composition root: the only module that connects the API to infrastructure. (The
+extraction worker has its own, ``worker.py``.)
 """
 
 from collections.abc import AsyncIterator, Iterator
@@ -14,12 +15,12 @@ from invoice_intake.api.health import router as health_router
 from invoice_intake.api.invoices import router as invoices_router
 from invoice_intake.api.review import router as review_router
 from invoice_intake.config import Settings, get_settings
-from invoice_intake.domain import ExtractionProvider
 from invoice_intake.infrastructure.database import make_engine, make_session_factory
-from invoice_intake.infrastructure.extraction import make_extraction_provider
+from invoice_intake.infrastructure.queue import RedisExtractionQueue
 from invoice_intake.infrastructure.repository import SqlInvoiceRepository
 from invoice_intake.services.extraction import ExtractionService, ExtractionServiceFactory
 from invoice_intake.services.intake import IntakeService, IntakeServiceFactory
+from invoice_intake.services.queue import AfterCommitQueue, ExtractionQueue
 from invoice_intake.services.review import ReviewService, ReviewServiceFactory
 
 
@@ -33,31 +34,36 @@ def create_app(
     intake_service: IntakeServiceFactory | None = None,
     extraction_service: ExtractionServiceFactory | None = None,
     review_service: ReviewServiceFactory | None = None,
-    extraction_provider: ExtractionProvider | None = None,
+    extraction_queue: ExtractionQueue | None = None,
 ) -> FastAPI:
-    """Build the app. Tests pass explicit settings, or their own service factories or provider.
+    """Build the app. Tests pass explicit settings, their own service factories or queue.
 
-    The extraction provider is created here, so bad provider settings stop startup with a
-    clear message (``ProviderConfigurationError``) instead of failing on the first invoice.
+    Extraction itself runs in the worker; the API only queues invoices for it, after the
+    transaction that stored them has committed.
     """
     resolved = settings if settings is not None else get_settings()
-    provider = extraction_provider or make_extraction_provider(resolved)
+    queue = extraction_queue or RedisExtractionQueue.from_url(resolved.redis_url)
     engine = make_engine(resolved.database_url)  # connects lazily, on first use
     sessions = make_session_factory(engine)
 
     @contextmanager
     def sql_intake_service() -> Iterator[IntakeService]:
+        pending = AfterCommitQueue()
         with sessions.begin() as session:  # commits on success, rolls back on error
             yield IntakeService(
                 SqlInvoiceRepository(session),
+                pending,
                 clock=utc_now,
                 max_upload_bytes=resolved.max_upload_bytes,
             )
+        pending.flush_to(queue)  # only reached after a successful commit
 
     @contextmanager
     def sql_extraction_service() -> Iterator[ExtractionService]:
+        pending = AfterCommitQueue()
         with sessions.begin() as session:
-            yield ExtractionService(SqlInvoiceRepository(session), provider, clock=utc_now)
+            yield ExtractionService(SqlInvoiceRepository(session), pending, clock=utc_now)
+        pending.flush_to(queue)
 
     @contextmanager
     def sql_review_service() -> Iterator[ReviewService]:
