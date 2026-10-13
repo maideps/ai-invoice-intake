@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Runs the frontend's npm scripts from the repository root, the way tools/py.mjs runs the backend.
 //
-//   node tools/web.mjs setup        install frontend/ dependencies (npm ci)
+//   node tools/web.mjs setup        install frontend/ dependencies (npm ci) and Playwright's Chromium
 //   node tools/web.mjs <script>     run a frontend/package.json script (lint, typecheck, test, build, dev)
 //
 // The harness gates (npm run lint / typecheck / test / build) call this launcher, so a missing
@@ -42,7 +42,9 @@ if (!nodeIsRecentEnough()) {
   process.exit(1);
 }
 if (command === "setup") {
-  process.exit(npm(["ci", "--no-audit", "--no-fund"]));
+  const installed = npm(["ci", "--no-audit", "--no-fund"]);
+  // The end-to-end tests drive Chromium; Playwright downloads its own build once.
+  process.exit(installed === 0 ? npm(["exec", "--", "playwright", "install", "chromium"]) : installed);
 }
 if (!existsSync(path.join(frontend, "node_modules"))) {
   console.error("Frontend dependencies are not installed. Run: npm run setup:frontend");

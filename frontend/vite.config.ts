@@ -23,6 +23,8 @@ export default defineConfig({
           if (/node_modules\/(react|react-dom|react-router|scheduler)\//.test(id)) return "react";
           if (/node_modules\/(@tanstack|openapi-fetch)\//.test(id)) return "data";
           if (/node_modules\/(motion|motion-dom|motion-utils|framer-motion)\//.test(id)) return "motion";
+          // pdf.js is only needed on the review screen, which loads it on demand.
+          if (/node_modules\/(react-pdf|pdfjs-dist|make-cancellable-promise|make-event-props|merge-refs|tiny-invariant|warning|dequal)\//.test(id)) return "pdf";
           return "vendor";
         },
       },
@@ -50,6 +52,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    include: ["src/**/*.test.{ts,tsx}"], // e2e/ is Playwright's
     setupFiles: ["./src/test/setup.ts"],
     css: false,
     restoreMocks: true,

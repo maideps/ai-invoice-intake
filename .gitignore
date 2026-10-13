@@ -9,6 +9,8 @@
 
 # Node projects
 node_modules/
+test-results/
+playwright-report/
 
 # Windows reserved device names (shell redirect artifacts)
 nul

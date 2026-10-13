@@ -104,3 +104,12 @@
 @utility tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Highlights in the PDF text layer: the text there is transparent (it sits over the rendered
+   page), so the mark shows as a tinted box over the printed value. */
+.textLayer mark {
+  color: transparent;
+  background-color: oklch(0.86 0.17 92 / 0.55);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px oklch(0.86 0.17 92 / 0.55);
+}

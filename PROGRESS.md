@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (feat-001 to feat-008 passing; next: feat-009)
+- Current active feature (or none): none (feat-001 to feat-009 passing; next: feat-010)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -75,7 +75,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 
 ### Session 005 — 2026-10-13
 
-- Goal: feat-006 (review and approval API), feat-007 (background worker and queue) and feat-008 (review queue UI).
+- Goal: feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI) and feat-009 (review detail UI).
 - Completed:
   - Sprint contract `docs/sprints/feat-006.md`.
   - JSON field parsing moved to `domain/field_values.py` (shared by AI output and reviewer edits); `parse_field_patch` for partial edits.
@@ -87,12 +87,14 @@ Keep the "Current Verified State" block current at all times; the session log be
   - Published: public repo https://github.com/maideps/ai-invoice-intake (`main` pushed). `LICENSE` names the author (keeping the framework's MIT line for the harness files) and the inherited framework CI is switched to manual runs (D-011).
   - feat-008: sprint contract `docs/sprints/feat-008.md`; `frontend/` (React 19, TypeScript strict, Vite 7, Tailwind v4, shadcn-style primitives, TanStack Query, React Router, Motion, sonner, self-hosted Inter); review queue with status overview and URL filters, drop-zone upload, live list (2 s while busy, 15 s idle), loading / empty / stale / error states, theme toggle, "acting as" (`X-User`); placeholder detail page; `GET /invoices/stats`; OpenAPI export and generated client with drift tests on both sides; `tools/web.mjs` and root scripts (`setup:frontend`, `dev:frontend`, `api:types`; lint, typecheck, test and build now include the frontend). D-012. Plan and concept mockup shared in chat first; author chose calm and clean, system theme.
   - Live check in the browser pane (dev PostgreSQL, Redis, API, worker, Vite): phone and tablet widths, light and dark; queued-to-needs-review without reload; API down then retry; filters in the URL; detail placeholder. Fixed from it: idle refresh (uploads by others never appeared), words in the UI language vs numbers in the viewer locale (the pane's Spanish locale showed "ahora"), a 502 from the dev proxy so "can't reach the API" is said plainly, a stale-data notice, and wording ("Nothing in Failed").
+  - feat-009: sprint contract `docs/sprints/feat-009.md`; review screen in `frontend/src/features/review/`: pdf.js viewer (lazy, own chunk) with click-to-highlight in the text layer (`highlight.ts`), field editor with confidence bands and next-low-confidence, totals check in exact cents (`totals.ts`), minimal patch and error mapping (`draft.ts`), approve / reject with reason / retry, 409 conflict banner, audit timeline, keyboard shortcuts. Review mutations in `api/queries.ts`. Real end-to-end tests: `tools/e2e.mjs` + Playwright (`frontend/e2e/review.spec.ts`), replacing the SKIP (D-013 supersedes D-004).
+  - Fixed along the way: two ambiguous Playwright selectors, Node's DEP0190 shell warning (shell only for npm/npx), and the vendor chunk pulling pdf.js into every page (now its own lazy `pdf` chunk). Full-resolution screenshots (Playwright, light and dark) confirmed the French total `3 627,23` highlighted in the PDF.
   - The worker end-to-end test found a real race (a read pairing an old invoice row with newer audit events); reads now load in one statement, with a regression test.
   - Live check: dev PostgreSQL and Redis containers, API via the preview pane, worker as a separate process; upload answered in about 120 ms with `uploaded`, the worker reached `needs_review` about 3 s later. Containers, launch config and worker processes cleaned up (on Windows, stopping the npm wrapper left the Python worker running; it was stopped by hand).
   - Live check: dev DB with migrations 0001-0003, server, upload + extract + edit + stale approve (409) + approve, and reject without reason / approve without total (422) then reject; temporary container and launch config removed.
-- Verification run: `npm run verify-feature -- feat-006`, `-- feat-007` and `-- feat-008`; `npm run check-arch`; 432 backend tests (PostgreSQL and Redis ones included; worker and queue tests repeated three times without flakiness), ruff, mypy --strict; 25 frontend tests, ESLint (zero warnings), `tsc` strict, `vite build`.
-- Evidence captured: `.harness/state/feat-006.json`, `feat-007.json` and `feat-008.json` (written by verify-feature).
-- Commits: 4a69540 (feat-005), 351f554 (feat-006), d34e070 (feat-007), fbcd862 (LICENSE and CI, D-011); feat-008 is the next commit.
+- Verification run: `npm run verify-feature -- feat-006` to `-- feat-009` (feat-009 with the real e2e layer, no SKIP); `npm run check-arch`; 432 backend tests (PostgreSQL and Redis ones included; worker and queue tests repeated three times without flakiness), ruff, mypy --strict; 55 frontend tests, ESLint (zero warnings), `tsc` strict, `vite build`; Playwright e2e on the real stack (containers and processes cleaned up afterwards).
+- Evidence captured: `.harness/state/feat-006.json` to `feat-009.json` (written by verify-feature).
+- Commits: 4a69540 (feat-005), 351f554 (feat-006), d34e070 (feat-007), fbcd862 (LICENSE and CI, D-011), a6474e0 (feat-008, pushed); feat-009 is the next commit.
 - Files or artifacts updated: backend/src/invoice_intake/domain/ (field_values.py, extraction.py, invoice.py, audit.py), services/review.py, api/review.py, api/schemas.py, api/dependencies.py, main.py, migrations/versions/rev_0003_*, tests, README.md, docs/ARCHITECTURE.md, DECISIONS.md, docs/quality-document.md, docs/sprints/feat-006.md, PROGRESS.md, session-handoff.md.
-- Known risk or unresolved issue: the acting user is still the trusted `X-User` header; the approval field list is a fixed rule (D-009); the OpenAI provider is still untried with a real key; `npm run check` now needs Docker for PostgreSQL and Redis; several workers need distinct `INVOICE_INTAKE_WORKER_ID`s; the frontend needs Node 20.19+ and `npm run setup:frontend` before `npm run check`.
-- Next best step: feat-009 (review detail UI: PDF beside editable fields, click-to-highlight, confidence, totals check, approve/reject, audit timeline, conflict handling, keyboard shortcuts, Playwright e2e replacing the SKIP), sprint contract first.
+- Known risk or unresolved issue: the acting user is still the trusted `X-User` header; the approval field list is a fixed rule (D-009); the OpenAI provider is still untried with a real key; `npm run check` now needs Docker for PostgreSQL and Redis; several workers need distinct `INVOICE_INTAKE_WORKER_ID`s; the frontend needs Node 20.19+ and `npm run setup:frontend` (with Playwright's Chromium) before `npm run check`; `npm run e2e` uses ports 5434, 6380, 8100 and 5174.
+- Next best step: feat-010 (export webhook: approved invoices posted to a configured URL with retries and visible export status), sprint contract first.

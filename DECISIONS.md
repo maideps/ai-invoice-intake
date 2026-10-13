@@ -63,7 +63,7 @@ This file records significant architectural decisions, their context, alternativ
 ### D-004: The `e2e` layer is an explicit SKIP placeholder until the product has end-to-end tests
 
 **Date:** 2026-10-12
-**Status:** accepted (temporary, until feat-009 / feat-011)
+**Status:** superseded by D-013 (real end-to-end tests since feat-009)
 **Context:** The harness ships `scripts.e2e` as `node scripts/framework-check.mjs e2e`, which runs the framework's own adoption matrix: it generates throwaway adopter repos from this repository's `package.json` and runs the harness in each. Once this project customised its `package.json` scripts (D-003), the matrix fixtures referenced `tools/py.mjs` and `backend/`, which the fixtures do not contain, so the matrix failed (6 failures) even though the product itself was healthy.
 **Decision:** Point `scripts.e2e` at `tools/skip.mjs`, which prints a visible `[SKIP]` and exits 0, so `npm run check` stays runnable and honest about what is not verified. Replace it with real end-to-end tests when the UI exists.
 **Alternatives considered:**
@@ -236,3 +236,25 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: one typed contract between backend and frontend; the gates cover both halves; light, dark, mobile and tablet were checked in a browser.
 - Negative: `npm run check` needs `npm run setup:frontend` once and Node 20.19 or newer; the frontend dependency tree is large; polling costs a request every 15 seconds per open queue.
+
+### D-013: End-to-end tests run the real stack with Playwright
+
+**Date:** 2026-10-13
+**Status:** accepted (supersedes D-004)
+**Context:** D-004 left the `e2e` layer as a SKIP placeholder until there was a UI. feat-009 must show that "an end-to-end test approves an invoice through the UI". The stack has five moving parts (PostgreSQL, Redis, API, worker, web app). The author's machine runs a local PostgreSQL on 5432 and develops on Windows, where stopping a process does not stop its children.
+**Decision:**
+- `npm run e2e` runs `tools/e2e.mjs`:
+  - starts throwaway `postgres:16-alpine` (port 5434) and `redis:7-alpine` (port 6380) containers, waits for them, and applies the Alembic migrations
+  - starts the API (8100), the extraction worker and the Vite dev server (5174, proxying to the API), with their output in log files
+  - waits for health, then runs `playwright test` in Chromium
+  - tears everything down in a `finally`: whole process trees (`taskkill /T` on Windows, process groups elsewhere) and the containers
+- Ports differ from development, so a running dev stack is never touched. Only `npm`/`npx` go through a shell on Windows (they are `.cmd` files); everything else runs directly.
+- The scenario covers the product's main path: set "acting as", upload a sample through the file picker, wait for the worker, open the review screen, see the PDF and the highlighted total, correct a field, save, approve with the keyboard, and check the audit trail and the queue counts. It uses the fake provider, so no network is needed.
+- Docker is required, as for the backend tests; `npm run setup:frontend` installs Playwright's Chromium.
+**Alternatives considered:**
+- Playwright's `webServer` option — Rejected: it cannot start the worker (no URL to wait on) or the containers, and per-server cleanup on Windows is unreliable.
+- docker compose for the stack — Deferred to feat-011: compose will package the app; e2e can switch to it then.
+- Mocking the API in browser tests — Rejected: the component tests already do that; this layer exists to prove the real pieces work together.
+**Consequences:**
+- Positive: `npm run check` now ends with a real end-to-end run (about 10 seconds plus startup); the SKIP is gone.
+- Negative: `npm run check` needs Docker and Chromium; the run uses four local ports.

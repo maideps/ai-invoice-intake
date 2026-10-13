@@ -33,7 +33,7 @@
     "typecheck": "node scripts/framework-check.mjs typecheck && node tools/py.mjs -m mypy && node tools/web.mjs typecheck",
     "test": "node scripts/framework-check.mjs test && node tools/py.mjs -m pytest -q && node tools/web.mjs test",
     "build": "node scripts/framework-check.mjs build && node tools/py.mjs -m compileall -q src && node tools/web.mjs build",
-    "e2e": "node tools/skip.mjs \"no end-to-end tests yet (planned: feat-009 and feat-011)\"",
+    "e2e": "node tools/e2e.mjs",
     "dev": "node scripts/framework-check.mjs dev",
     "check-arch": "node scripts/framework-check.mjs check-arch",
     "verify-feature": "node scripts/framework-check.mjs verify-feature",

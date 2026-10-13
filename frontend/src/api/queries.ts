@@ -83,4 +83,67 @@ export function useUploadInvoice() {
   });
 }
 
+/** After a change: show the new invoice at once, and refresh lists and counts. */
+function useInvoiceUpdated() {
+  const queryClient = useQueryClient();
+  return (invoice: Invoice) => {
+    queryClient.setQueryData(keys.detail(invoice.id), invoice);
+    void queryClient.invalidateQueries({ queryKey: ["invoices", "list"] });
+    void queryClient.invalidateQueries({ queryKey: keys.stats });
+  };
+}
+
+const path = (id: string) => ({ params: { path: { invoice_id: id } } });
+
+export function useEditFields(id: string) {
+  const onSuccess = useInvoiceUpdated();
+  return useMutation({
+    mutationFn: (body: { version: number; fields: Record<string, unknown> }) =>
+      unwrap<Invoice>(api.PATCH("/invoices/{invoice_id}/fields", { ...path(id), body })),
+    onSuccess,
+  });
+}
+
+export function useApprove(id: string) {
+  const onSuccess = useInvoiceUpdated();
+  return useMutation({
+    mutationFn: (version: number) =>
+      unwrap<Invoice>(api.POST("/invoices/{invoice_id}/approve", { ...path(id), body: { version } })),
+    onSuccess,
+  });
+}
+
+export function useReject(id: string) {
+  const onSuccess = useInvoiceUpdated();
+  return useMutation({
+    mutationFn: ({ version, reason }: { version: number; reason: string }) =>
+      unwrap<Invoice>(
+        api.POST("/invoices/{invoice_id}/reject", { ...path(id), body: { version, reason } }),
+      ),
+    onSuccess,
+  });
+}
+
+export function useRequestExtraction(id: string) {
+  const onSuccess = useInvoiceUpdated();
+  return useMutation({
+    mutationFn: () => unwrap<Invoice>(api.POST("/invoices/{invoice_id}/extract", path(id))),
+    onSuccess,
+  });
+}
+
+/** Invoices waiting for review, oldest first, for "next" and "previous" (J and K). */
+export function useReviewQueue() {
+  return useQuery({
+    queryKey: ["invoices", "list", "review-order"],
+    queryFn: async () => {
+      const page = await unwrap<InvoicePage>(
+        api.GET("/invoices", { params: { query: { status: "needs_review", limit: 100, offset: 0 } } }),
+      );
+      return page.items.map((item) => item.id).reverse();
+    },
+    refetchInterval: IDLE_REFRESH_MS,
+  });
+}
+
 export type { InvoiceSummary };
