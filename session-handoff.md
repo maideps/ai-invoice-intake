@@ -6,7 +6,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 
 - Goal: build AI Invoice Intake, a portfolio project (FastAPI + PostgreSQL + Redis worker + React/TypeScript, OpenAI extraction behind an interface, human approval before export, all data synthetic) using ai-harness-framework, one feature at a time.
 - Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API) and feat-007 (background worker and queue) are `passing`. Nothing else is started. feat-008 (review queue UI) is next.
-- Branch / commit: `main`; D-005 is `f48a0b4`, feat-002 `44a0fc1`, feat-003 `d0f6278`, feat-004 `f28ef17`, feat-005 `4a69540`, feat-006 `351f554`; feat-007 is the next commit. Local repository only; there is no GitHub remote yet.
+- Branch / commit: `main` (feat-007 is `d34e070`), pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
 
 ## Completed This Session
 
@@ -47,7 +47,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - `backend/` (new): app, tests, `pyproject.toml`, `.env.example`
 - `tools/py.mjs`, `tools/skip.mjs` (new); `package.json` scripts (`lint`, `typecheck`, `test`, `build`, `e2e`, `setup:backend`, `dev:backend`)
 - `docs/`, `README.md`, `DECISIONS.md` (D-001 to D-004), `PROGRESS.md`, `feature_list.json`, `.harness/manifest.json` (`productRoots`)
-- `scripts/` and `LICENSE` refreshed by `harness-upgrade` (CORE; do not edit by hand)
+- `scripts/` refreshed by `harness-upgrade` (CORE; do not edit by hand); `LICENSE` is CORE too, but its author line is restored by hand after each upgrade (D-011)
 
 ## Decisions Made
 
@@ -66,7 +66,8 @@ Fill this at session end for large sessions; keep it current otherwise.
 
 - No `failed` status yet: feat-007 (worker) must add it and its transitions to `domain/status.py`.
 - `Invoice` can only be created as a new upload; feat-004 needs a way to rebuild one from stored data and events.
-- `LICENSE` is a CORE file, so `harness-upgrade` resets it to the framework's copyright line ("AI Harness Framework contributors"). Decide whether to keep it or set the author's name after each upgrade.
+- `LICENSE` is a CORE file: after every `harness-upgrade`, restore the author line `Copyright (c) 2026 Maidelin Prieto` (D-011).
+- `.github/workflows/ci.yml` is the framework's CI, switched to manual runs only; there is no project CI until feat-011 (D-011).
 - The e2e layer is not verified; do not treat a green `npm run check` as end-to-end evidence yet.
 - `npm run check` needs Docker Desktop running (it is installed on the author's machine but set to start manually). Without it the database tests fail with a message saying so. `docker compose` (feat-011) is still untested.
 - New audit actions must be added to `AuditAction`, `_NOTE_RULES` in `domain/invoice.py` (or as status changes) and the `ck_audit_events_action` check in a new migration, together (0002 and 0003 show the pattern, including a downgrade that refuses to drop events).
@@ -90,4 +91,3 @@ Fill this at session end for large sessions; keep it current otherwise.
 ## Recommended Next Step
 
 - Start feat-008 (review queue UI): sprint contract in `docs/sprints/feat-008.md`, set `.harness/state/feat-008.json` to active. Scaffold `frontend/` (React + TypeScript, Vite), wire its lint, typecheck, test and build into the root npm scripts next to the backend (as D-003 did), and build the queue list with status filters plus loading, empty and error states against the existing API (`GET /invoices`, `version`, `confidence`). Then `npm run verify-feature -- feat-008`.
-- Optional: create a GitHub repo for the project and push (`git remote add origin ...`), then wire CI in feat-011.

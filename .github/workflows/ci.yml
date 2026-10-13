@@ -1,9 +1,10 @@
-name: ci
+# The harness framework's own CI (its adoption matrix), inherited from create-harness. It does
+# not set up this project's backend, PostgreSQL or Redis, so it would fail here. Switched off
+# (manual runs only) until feat-011 replaces it with this project's CI (D-011).
+name: ci (harness framework, disabled)
 
 on:
-  push:
-    branches: [master]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   check:

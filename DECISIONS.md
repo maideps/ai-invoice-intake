@@ -194,3 +194,18 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: uploads are instant; no job is lost on a crash or a Redis outage at upload time; the same code runs on Windows, Linux and in Docker; retries and failures are visible in the audit trail.
 - Negative: we own the queue code (kept small and tested against real Redis); a job may run twice (harmless, by design); each worker needs its own `INVOICE_INTAKE_WORKER_ID` when several run at once; `npm run check` needs Docker for both PostgreSQL and Redis.
+
+### D-011: Public repository: author in LICENSE, inherited framework CI switched off
+
+**Date:** 2026-10-13
+**Status:** accepted
+**Context:** The project is now public at github.com/maideps/ai-invoice-intake. `create-harness` left two things that do not fit a public adopter repo. `LICENSE` named only "AI Harness Framework contributors", and `harness-upgrade` resets it because it is a CORE file. `.github/workflows/ci.yml` is the framework's own CI (its adoption matrix), which does not set up this project's backend, PostgreSQL or Redis.
+**Decision:**
+- `LICENSE` (MIT) names Maidelin Prieto as the copyright holder. It keeps the framework's line, scoped to the harness files, because MIT requires its notice to stay with that code.
+- `ci.yml` only runs when started by hand (`workflow_dispatch`), with a comment saying why. feat-011 replaces it with this project's CI.
+**Alternatives considered:**
+- Replace the framework's copyright line — Rejected: the harness files (`scripts/`, `templates/`, `skills/`, `tests/`) are the framework's work under MIT.
+- Delete `ci.yml` — Rejected: it is declared in the manifest as an instance surface; keeping it switched off avoids manifest churn until feat-011 rewrites it.
+**Consequences:**
+- Positive: the public repo shows the right author; pull requests do not trigger a CI run that is bound to fail.
+- Negative: after every `harness-upgrade`, restore the author line in `LICENSE` (the upgrade overwrites it). There is no CI until feat-011.
