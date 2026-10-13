@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from invoice_intake import __version__
 from invoice_intake.api.health import router as health_router
 from invoice_intake.api.invoices import router as invoices_router
+from invoice_intake.api.review import router as review_router
 from invoice_intake.config import Settings, get_settings
 from invoice_intake.domain import ExtractionProvider
 from invoice_intake.infrastructure.database import make_engine, make_session_factory
@@ -19,6 +20,7 @@ from invoice_intake.infrastructure.extraction import make_extraction_provider
 from invoice_intake.infrastructure.repository import SqlInvoiceRepository
 from invoice_intake.services.extraction import ExtractionService, ExtractionServiceFactory
 from invoice_intake.services.intake import IntakeService, IntakeServiceFactory
+from invoice_intake.services.review import ReviewService, ReviewServiceFactory
 
 
 def utc_now() -> datetime:
@@ -30,6 +32,7 @@ def create_app(
     *,
     intake_service: IntakeServiceFactory | None = None,
     extraction_service: ExtractionServiceFactory | None = None,
+    review_service: ReviewServiceFactory | None = None,
     extraction_provider: ExtractionProvider | None = None,
 ) -> FastAPI:
     """Build the app. Tests pass explicit settings, or their own service factories or provider.
@@ -56,6 +59,11 @@ def create_app(
         with sessions.begin() as session:
             yield ExtractionService(SqlInvoiceRepository(session), provider, clock=utc_now)
 
+    @contextmanager
+    def sql_review_service() -> Iterator[ReviewService]:
+        with sessions.begin() as session:
+            yield ReviewService(SqlInvoiceRepository(session), clock=utc_now)
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
@@ -65,8 +73,10 @@ def create_app(
     app.state.settings = resolved
     app.state.intake_service = intake_service or sql_intake_service
     app.state.extraction_service = extraction_service or sql_extraction_service
+    app.state.review_service = review_service or sql_review_service
     app.include_router(health_router)
     app.include_router(invoices_router)
+    app.include_router(review_router)
     return app
 
 

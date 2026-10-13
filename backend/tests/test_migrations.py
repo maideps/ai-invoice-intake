@@ -7,13 +7,13 @@ from alembic.migration import MigrationContext
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 
-from invoice_intake.domain import Document, InvoiceStatus
+from invoice_intake.domain import ActorKind, Document, InvoiceStatus, parse_field_patch
 from invoice_intake.infrastructure.database import make_engine, make_session_factory
 from invoice_intake.infrastructure.repository import SqlInvoiceRepository
 from invoice_intake.infrastructure.tables import Base
 
 from .conftest import alembic_config
-from .domain_helpers import at, invoice_in
+from .domain_helpers import ACTORS, at, invoice_in
 
 pytestmark = pytest.mark.postgres
 
@@ -95,3 +95,23 @@ def _columns(url: str, table: str) -> set[str]:
         return {column["name"] for column in inspect(engine).get_columns(table)}
     finally:
         engine.dispose()
+
+
+def test_downgrade_below_0003_refuses_to_drop_reviewer_edits(clean_database_url: str) -> None:
+    config = alembic_config(clean_database_url)
+    command.upgrade(config, "head")
+    invoice = invoice_in(InvoiceStatus.NEEDS_REVIEW)
+    invoice.edit_fields(
+        parse_field_patch(invoice.fields, {"total": "1.00"}),
+        actor=ACTORS[ActorKind.USER],
+        at=at(9),
+    )
+    engine = make_engine(clean_database_url)
+    try:
+        with make_session_factory(engine).begin() as session:
+            SqlInvoiceRepository(session).add(invoice, Document("application/pdf", b"%PDF-1"))
+    finally:
+        engine.dispose()
+
+    with pytest.raises(RuntimeError, match="1 fields_edited audit event"):
+        command.downgrade(config, "0002")

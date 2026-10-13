@@ -14,7 +14,6 @@ from .errors import (
     InvalidTransitionError,
 )
 from .extraction import (
-    FIELD_NAMES,
     OUTPUT_SCHEMA,
     ExtractionOutputError,
     ExtractionProvider,
@@ -24,17 +23,20 @@ from .extraction import (
     empty_output,
     parse_extraction,
 )
-from .invoice import Invoice, InvoiceFields, LineItem
+from .field_values import FIELD_NAMES, FieldValuesError, parse_field_patch
+from .invoice import REQUIRED_FOR_APPROVAL, ApprovalBlockedError, Invoice, InvoiceFields, LineItem
 from .repository import Document, InvoicePage, InvoiceRepository
 from .status import TRANSITIONS, InvoiceStatus, allowed_next, is_terminal
 
 __all__ = [
     "FIELD_NAMES",
     "OUTPUT_SCHEMA",
+    "REQUIRED_FOR_APPROVAL",
     "TRANSITIONS",
     "Actor",
     "ActorKind",
     "ActorNotPermittedError",
+    "ApprovalBlockedError",
     "AuditAction",
     "AuditEvent",
     "ConcurrentModificationError",
@@ -44,6 +46,7 @@ __all__ = [
     "ExtractionProvider",
     "ExtractionProviderError",
     "ExtractionResult",
+    "FieldValuesError",
     "InvalidInvoiceDataError",
     "InvalidTransitionError",
     "Invoice",
@@ -56,5 +59,6 @@ __all__ = [
     "allowed_next",
     "empty_output",
     "is_terminal",
+    "parse_field_patch",
     "parse_extraction",
 ]

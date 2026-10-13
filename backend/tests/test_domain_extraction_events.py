@@ -91,6 +91,7 @@ def test_only_an_ai_actor_may_record_extraction_notes() -> None:
 
 def test_rejected_output_is_kept_without_touching_fields() -> None:
     invoice = invoice_in(S.EXTRACTING)
+    fields_before = invoice.fields
 
     event = invoice.record_rejected_extraction(
         provider="openai",
@@ -100,7 +101,7 @@ def test_rejected_output_is_kept_without_touching_fields() -> None:
         at=at(10),
     )
 
-    assert invoice.fields == InvoiceFields()
+    assert invoice.fields == fields_before
     assert event.action is AuditAction.EXTRACTION_REJECTED
     assert event.details == {
         "provider": "openai",

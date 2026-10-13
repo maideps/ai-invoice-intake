@@ -26,7 +26,19 @@ MAX_RECORDED_OUTPUT_CHARS = 20_000
 _NOTE_RULES: dict[AuditAction, tuple[InvoiceStatus, ActorKind]] = {
     AuditAction.EXTRACTION_RECORDED: (InvoiceStatus.EXTRACTING, ActorKind.AI),
     AuditAction.EXTRACTION_REJECTED: (InvoiceStatus.EXTRACTING, ActorKind.AI),
+    AuditAction.FIELDS_EDITED: (InvoiceStatus.NEEDS_REVIEW, ActorKind.USER),
 }
+
+# Fields an invoice must have before a reviewer can approve it.
+REQUIRED_FOR_APPROVAL = ("vendor_name", "invoice_number", "issue_date", "currency", "total")
+
+
+class ApprovalBlockedError(InvalidInvoiceDataError):
+    """Approval needs fields that are still empty. ``missing`` names them."""
+
+    def __init__(self, missing: list[str]) -> None:
+        super().__init__(f"cannot approve until these fields are filled: {', '.join(missing)}")
+        self.missing = missing
 
 
 def _require_amount(value: Decimal, field: str) -> None:
@@ -227,6 +239,15 @@ class Invoice:
         return tuple(self._events)
 
     @property
+    def version(self) -> int:
+        """Grows with every audit event; clients send it back to prove they saw the latest state."""
+        return len(self._events)
+
+    @property
+    def missing_for_approval(self) -> list[str]:
+        return [name for name in REQUIRED_FOR_APPROVAL if getattr(self._fields, name) is None]
+
+    @property
     def extraction_confidence(self) -> dict[str, float] | None:
         """Per-field confidence of the latest accepted extraction, if any."""
         for event in reversed(self._events):
@@ -254,6 +275,27 @@ class Invoice:
                 "fields": fields.to_json(),
                 "confidence": dict(confidence),
             },
+        )
+        self._fields = fields
+        return event
+
+    def edit_fields(
+        self, fields: InvoiceFields, *, actor: Actor, at: datetime
+    ) -> AuditEvent | None:
+        """A reviewer's correction: replace the fields and record each change (before and after).
+
+        Returns ``None`` and records nothing when ``fields`` equals the current fields.
+        """
+        before, after = self._fields.to_json(), fields.to_json()
+        changes = {
+            name: {"from": before[name], "to": after[name]}
+            for name in before
+            if before[name] != after[name]
+        }
+        if not changes:
+            return None
+        event = self._note(
+            AuditAction.FIELDS_EDITED, actor=actor, at=at, details={"changes": changes}
         )
         self._fields = fields
         return event
@@ -332,6 +374,8 @@ class Invoice:
         reason = (reason or "").strip() or None
         if target is InvoiceStatus.REJECTED and not reason:
             raise InvalidInvoiceDataError("a rejection needs a reason")
+        if target is InvoiceStatus.APPROVED and self.missing_for_approval:
+            raise ApprovalBlockedError(self.missing_for_approval)
         require_aware(at, "at")
         if at < self._events[-1].occurred_at:
             raise InvalidInvoiceDataError("audit events must not go back in time")

@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (feat-001 to feat-005 passing; next: feat-006)
+- Current active feature (or none): none (feat-001 to feat-006 passing; next: feat-007)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -72,3 +72,21 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Files or artifacts updated: backend/src/invoice_intake/domain/, backend/tests/ (domain tests), backend/tools/, backend/pyproject.toml (pytest and mypy paths), .harness/arch-rules.json, docs/ARCHITECTURE.md, docs/quality-document.md, docs/sprints/feat-002.md, PROGRESS.md, session-handoff.md.
 - Known risk or unresolved issue: the state set has no `failed` status; feat-007 (worker) must add it with its transitions. The `Invoice` entity can only be created as a new upload; feat-004 needs a way to rebuild one from stored events. Field edits and their audit actions belong to feat-006. The ground-truth helpers live in `backend/tools/samplegen/`; if the fake extraction provider (feat-005) needs them at runtime, move them into the app package. Upgrading ReportLab means regenerating the samples. `npm run check` now needs Docker running (database tests fail, by design, without it). New audit actions must be added in three places together: `AuditAction` plus `_NOTE_RULES` in the domain, and the `ck_audit_events_action` check (a new migration). The OpenAI provider has never been called for real (no key in this session); only its request shape is tested. The `X-User` header is trusted as-is (no authentication, a documented non-goal).
 - Next best step: feat-006 (review and approval API: edit fields, approve, reject, every human decision audited), sprint contract first.
+
+### Session 005 — 2026-10-13
+
+- Goal: feat-006 (review and approval API).
+- Completed:
+  - Sprint contract `docs/sprints/feat-006.md`.
+  - JSON field parsing moved to `domain/field_values.py` (shared by AI output and reviewer edits); `parse_field_patch` for partial edits.
+  - Domain: `fields_edited` audit action (only in `needs_review`, only by a user, old/new values in details, no event for a no-op edit), `Invoice.version`, approval requires vendor name, invoice number, issue date, currency and total (`ApprovalBlockedError`).
+  - `ReviewService` (edit, approve, reject, each checking the reviewer's version); `PATCH /invoices/{id}/fields`, `POST /invoices/{id}/approve`, `POST /invoices/{id}/reject`; invoice responses carry `version`; 422 detail `{message, errors}`.
+  - Migration 0003 (`fields_edited` in the action check; downgrade refuses while such events exist). D-009.
+  - Test helper invoices now carry approvable fields (`READY_FIELDS`).
+  - Live check: dev DB with migrations 0001-0003, server, upload + extract + edit + stale approve (409) + approve, and reject without reason / approve without total (422) then reject; temporary container and launch config removed.
+- Verification run: `npm run verify-feature -- feat-006`; `npm run check-arch`; 371 backend tests (including PostgreSQL ones), ruff, mypy --strict.
+- Evidence captured: `.harness/state/feat-006.json` (written by verify-feature).
+- Commits: 4a69540 (feat-005); feat-006 is the next commit.
+- Files or artifacts updated: backend/src/invoice_intake/domain/ (field_values.py, extraction.py, invoice.py, audit.py), services/review.py, api/review.py, api/schemas.py, api/dependencies.py, main.py, migrations/versions/rev_0003_*, tests, README.md, docs/ARCHITECTURE.md, DECISIONS.md, docs/quality-document.md, docs/sprints/feat-006.md, PROGRESS.md, session-handoff.md.
+- Known risk or unresolved issue: the acting user is still the trusted `X-User` header; the approval field list is a fixed rule (D-009); the OpenAI provider is still untried with a real key.
+- Next best step: feat-007 (Redis worker: extract automatically after upload, retries, a `failed` status), sprint contract first.

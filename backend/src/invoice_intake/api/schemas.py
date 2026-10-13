@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Annotated, Any
 from uuid import UUID
 
-from pydantic import BaseModel, PlainSerializer
+from pydantic import BaseModel, Field, PlainSerializer
 
 from invoice_intake.domain import AuditEvent, Invoice, InvoicePage, InvoiceStatus
 
@@ -83,6 +83,7 @@ class InvoiceOut(BaseModel):
     id: UUID
     filename: str
     status: InvoiceStatus
+    version: int  # send it back with edits and decisions (optimistic concurrency)
     uploaded_at: datetime
     fields: FieldsOut
     confidence: dict[str, float] | None  # per field, from the latest accepted extraction
@@ -95,6 +96,7 @@ class InvoiceOut(BaseModel):
             id=invoice.id,
             filename=invoice.filename,
             status=invoice.status,
+            version=invoice.version,
             uploaded_at=invoice.uploaded_at,
             fields=FieldsOut(
                 vendor_name=fields.vendor_name,
@@ -140,3 +142,29 @@ class ExtractionOut(BaseModel):
     accepted: bool
     errors: list[str]
     invoice: InvoiceOut
+
+
+# Request bodies for review. `version` is the invoice version the reviewer last saw.
+
+
+class EditFieldsIn(BaseModel):
+    version: int = Field(ge=1)
+    fields: dict[str, Any] = Field(
+        description="Fields to change, in the extraction JSON format; null clears a field."
+    )
+
+
+class ApproveIn(BaseModel):
+    version: int = Field(ge=1)
+
+
+class RejectIn(BaseModel):
+    version: int = Field(ge=1)
+    reason: str
+
+
+class ProblemOut(BaseModel):
+    """The `detail` of a 422 from the review endpoints: what failed, and every reason."""
+
+    message: str
+    errors: list[str]

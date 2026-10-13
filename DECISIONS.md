@@ -145,3 +145,23 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: one place decides what valid output is; every model answer is kept, accepted or not; the default setup runs offline.
 - Negative: confidence from real models is not calibrated, so the UI must present it as a hint; the default model name will age (it is a setting); audit events now carry two shapes (status change or note), checked in the domain and the database.
+
+### D-009: Review uses optimistic versions, audited edits and a minimum for approval
+
+**Date:** 2026-10-13
+**Status:** accepted
+**Context:** feat-006 lets people correct extracted fields, approve and reject. Two reviewers can work on the same invoice, and extraction can run again (feat-007), so a reviewer could approve or overwrite values they never saw. The audit log must show who changed what. An approved invoice goes to export (feat-010), which needs its key values.
+**Decision:**
+- Optimistic concurrency: `Invoice.version` is the number of audit events. Responses include it; edit, approve and reject must send it back; a different current version is refused with 409 ("reload it and retry"). This works without locks while a reviewer is reading, and needs no extra column because the trail is append-only.
+- An edit is a partial patch in the same JSON field format as AI output (`null` clears; `line_items` replaces the whole list). It goes through the same parser, now in `domain/field_values.py`, and is recorded as a `fields_edited` audit event holding the old and new value of each changed field. It is allowed only in `needs_review` and only for a `user` actor. An edit that changes nothing records nothing.
+- Approval requires vendor name, invoice number, issue date, currency and total (`REQUIRED_FOR_APPROVAL`). Totals are not cross-checked: a mismatch is a hint for the reviewer, not a block. Rejection still needs a reason.
+- Error shape: domain validation failures are 422 with `detail = {message, errors[]}`, so the UI can show every problem. A stale version or the wrong status is 409; an unknown invoice is 404. Malformed request bodies keep FastAPI's own 422 shape.
+- Migration 0003 adds `fields_edited` to the action check. Its downgrade refuses while such events exist.
+**Alternatives considered:**
+- Last write wins — Rejected: a reviewer could approve values someone else just changed without seeing them.
+- Lock an invoice while a reviewer has it open — Rejected: it needs lock expiry and cleanup, and the version check gives the same safety more simply.
+- Record each edit as a complete snapshot of the fields — Rejected: before/after per changed field is what an auditor reads, and the full fields are always in the invoice row.
+- Block approval when totals do not add up — Rejected for now: real invoices have rounding and discount lines the model does not capture; the UI should warn instead (feat-009).
+**Consequences:**
+- Positive: no silent overwrites; the trail answers "who changed what, from what, to what"; export can rely on the key fields being present.
+- Negative: clients must keep the version and reload after a 409; the required-field list is a product rule that may need to become configurable.

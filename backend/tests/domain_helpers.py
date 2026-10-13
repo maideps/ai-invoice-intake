@@ -1,10 +1,27 @@
 """Builders for domain tests: actors, a fixed clock, and invoices already in a given status."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
-from invoice_intake.domain import TRANSITIONS, Actor, ActorKind, Invoice, InvoiceStatus
+from invoice_intake.domain import (
+    TRANSITIONS,
+    Actor,
+    ActorKind,
+    Invoice,
+    InvoiceFields,
+    InvoiceStatus,
+)
 
 START = datetime(2026, 10, 12, 9, 0, tzinfo=timezone.utc)
+
+# Enough to approve (see REQUIRED_FOR_APPROVAL), so every status in PATHS can be reached.
+READY_FIELDS = InvoiceFields(
+    vendor_name="Acme Supplies",
+    invoice_number="INV-1",
+    issue_date=date(2026, 10, 1),
+    currency="EUR",
+    total=Decimal("100.00"),
+)
 
 ACTORS = {
     ActorKind.SYSTEM: Actor(ActorKind.SYSTEM, "worker"),
@@ -45,8 +62,13 @@ def actor_for(source: InvoiceStatus, target: InvoiceStatus) -> Actor:
     return ACTORS[TRANSITIONS[source][target]]
 
 
-def new_invoice() -> Invoice:
-    return Invoice(filename="acme-0001.pdf", uploaded_by=ACTORS[ActorKind.USER], uploaded_at=at(0))
+def new_invoice(fields: InvoiceFields = READY_FIELDS) -> Invoice:
+    return Invoice(
+        filename="acme-0001.pdf",
+        uploaded_by=ACTORS[ActorKind.USER],
+        uploaded_at=at(0),
+        fields=fields,
+    )
 
 
 def invoice_in(status: InvoiceStatus) -> Invoice:
