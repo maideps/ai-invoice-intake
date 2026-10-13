@@ -54,3 +54,7 @@ class InvoiceRepository(Protocol):
         """
 
     def get_document(self, invoice_id: UUID) -> Document | None: ...
+
+    def count_by_status(self) -> dict[InvoiceStatus, int]:
+        """How many invoices are in each status (statuses with none may be left out)."""
+        ...

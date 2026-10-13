@@ -8,19 +8,21 @@ A full-stack, human-in-the-loop invoice automation app. Invoices are uploaded, a
 
 ## Status
 
-Early development. In place so far: the FastAPI service skeleton (`GET /health`, typed settings, layered packages), the invoice domain model and state machine, a synthetic invoice generator with 12 committed samples in [`samples/`](samples/README.md), PostgreSQL persistence with an upload API (`POST /invoices`, list, fetch, audit events, original document), AI extraction in a background worker fed by a Redis queue (with retries and a `failed` status) and the provider chosen by configuration, and human review: correct fields, approve or reject, each decision audited with who made it. See [`feature_list.json`](feature_list.json) for the feature plan and [`PROGRESS.md`](PROGRESS.md) for the current state.
+Early development. In place so far: the FastAPI service skeleton (`GET /health`, typed settings, layered packages), the invoice domain model and state machine, a synthetic invoice generator with 12 committed samples in [`samples/`](samples/README.md), PostgreSQL persistence with an upload API (`POST /invoices`, list, fetch, audit events, original document), AI extraction in a background worker fed by a Redis queue (with retries and a `failed` status) and the provider chosen by configuration, human review (correct fields, approve or reject, each decision audited with who made it), and the first screen of the React dashboard: a live review queue. See [`feature_list.json`](feature_list.json) for the feature plan and [`PROGRESS.md`](PROGRESS.md) for the current state.
 
 ## Backend quick start
 
-Requires Node.js >= 18 (the harness), Python >= 3.10 and Docker (the database, and the test suite's throwaway PostgreSQL).
+Requires Node.js >= 20.19 (the frontend; the harness alone runs on 18), Python >= 3.10 and Docker (the database and Redis, and the test suite's throwaway containers).
 
 ```bash
 npm run setup:backend   # creates backend/.venv and installs the backend with dev tools
+npm run setup:frontend  # installs frontend/ dependencies (npm ci)
 docker run -d --name invoice-intake-db -p 5433:5432 -e POSTGRES_USER=invoice_intake -e POSTGRES_PASSWORD=invoice_intake -e POSTGRES_DB=invoice_intake postgres:16-alpine
 docker run -d --name invoice-intake-redis -p 6379:6379 redis:7-alpine
 npm run db:migrate      # applies the Alembic migrations
 npm run dev:backend     # serves http://localhost:8000 (docs at /docs)
 npm run dev:worker      # in a second terminal: extracts uploaded invoices in the background
+npm run dev:frontend    # in a third: the dashboard on http://localhost:5173 (calls the API via /api)
 curl http://localhost:8000/health
 curl -F "file=@samples/invoices/invoice-001.pdf" -H "X-User: you" http://localhost:8000/invoices
 curl http://localhost:8000/invoices/<id>                   # a moment later: needs_review, fields, confidence
@@ -33,9 +35,13 @@ Configuration comes from `INVOICE_INTAKE_*` environment variables (see [`backend
 
 **AI extraction.** `INVOICE_INTAKE_EXTRACTION_PROVIDER` picks the provider (D-005). The default, `fake`, needs no key or network: it recognises the synthetic samples and returns their ground truth (any other document comes back empty for a reviewer to fill in). For real extraction set it to `openai` together with `INVOICE_INTAKE_OPENAI_API_KEY` (and optionally `INVOICE_INTAKE_OPENAI_MODEL`, default `gpt-5.4-mini`); the app refuses to start if the key is missing. Every model output is validated against one schema and kept in the audit trail, accepted or not (D-008). Tests never call the real model.
 
+**Dashboard.** `frontend/` is React 19 + TypeScript (strict) on Vite 7, styled with Tailwind CSS v4 and small shadcn/ui-style components, with TanStack Query for server state (D-012). The review queue shows a count per status (doubling as filters, kept in the URL), a drop zone for uploads, and a list that refreshes every 2 seconds while the worker is busy (15 seconds otherwise), so invoices visibly move from queued to needs review. It has loading, empty and error states, light and dark themes (following the system by default), and an "acting as" name that is sent as `X-User`. API types are generated from FastAPI's OpenAPI document (`npm run api:types`); tests fail if they drift.
+
 **Background extraction.** An upload returns at once with status `uploaded`; the job goes to Redis after the upload is committed. The worker (`npm run dev:worker`) moves the invoice to `extracting` and then `needs_review`. Provider errors and rejected output are retried (`INVOICE_INTAKE_EXTRACTION_MAX_ATTEMPTS`, default 3, with doubling waits from `INVOICE_INTAKE_EXTRACTION_RETRY_BASE_SECONDS`, default 5); when the attempts run out the invoice is `failed` with the reason in its audit trail. `POST /invoices/{id}/extract` (202) asks for another try; on a `failed` invoice it records who asked. If Redis is down during an upload, the upload still succeeds and the worker's periodic sweep queues it later (D-010).
 
 **Review.** `PATCH /invoices/{id}/fields`, `POST /invoices/{id}/approve` and `POST /invoices/{id}/reject` work only in `needs_review` and record the acting user from `X-User`. Each request carries the invoice `version` the reviewer saw; if the invoice changed since, the answer is 409 and nothing changes. Approval needs vendor name, invoice number, issue date, currency and total; rejection needs a reason (D-009).
+
+`npm run lint`, `typecheck`, `test` and `build` cover the frontend too (ESLint with zero warnings, `tsc`, Vitest + Testing Library + MSW, `vite build`); run `npm run setup:frontend` once first.
 
 `npm run test` needs Docker running: the database and queue tests start their own `postgres:16-alpine` and `redis:7-alpine` containers and fail with a clear message when Docker is not available. To run everything else without Docker, from `backend/`: `python -m pytest -m "not postgres and not redis"`.
 

@@ -5,8 +5,8 @@ Fill this at session end for large sessions; keep it current otherwise.
 ## Current Objective
 
 - Goal: build AI Invoice Intake, a portfolio project (FastAPI + PostgreSQL + Redis worker + React/TypeScript, OpenAI extraction behind an interface, human approval before export, all data synthetic) using ai-harness-framework, one feature at a time.
-- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API) and feat-007 (background worker and queue) are `passing`. Nothing else is started. feat-008 (review queue UI) is next.
-- Branch / commit: `main` (feat-007 is `d34e070`), pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
+- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue) and feat-008 (review queue UI) are `passing`. Nothing else is started. feat-009 (review detail UI) is next.
+- Branch / commit: `main` (feat-007 `d34e070`, LICENSE/CI `fbcd862`; feat-008 is the next commit), pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
 
 ## Completed This Session
 
@@ -14,7 +14,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - [x] feat-001: FastAPI app factory, `GET /health`, typed `INVOICE_INTAKE_*` settings, layer packages (`api`, `services`, `domain`, `infrastructure`), 12 tests, ruff, mypy --strict.
 - [x] Wired the backend into the harness gates through `tools/py.mjs` (D-003); `e2e` is an explicit SKIP placeholder (D-004).
 - [x] Session 004: first run on Windows (setup and `npm run check` pass); D-005 (extraction provider chosen by config, default `fake`); feat-002 domain package with arch-007 (domain imports only the standard library); feat-003 sample generator and 12 committed samples (D-006); feat-004 PostgreSQL persistence, migrations and intake API with arch-008 (D-007); feat-005 AI extraction with `fake` and `openai` providers and every model output kept in the audit trail (D-008).
-- [x] Session 005: feat-006 review and approval API with audited edits, version checks and required fields for approval (D-009); feat-007 background extraction worker on a reliable Redis queue with retries and a `failed` status (D-010).
+- [x] Session 005: feat-006 review and approval API with audited edits, version checks and required fields for approval (D-009); feat-007 background extraction worker on a reliable Redis queue with retries and a `failed` status (D-010); feat-008 React dashboard with the live review queue, wired into the harness gates (D-012).
 - [x] Fixed two bugs upstream in `ai-harness-framework` and applied them here with `harness-upgrade`: backup-id collisions (D-021, commit 53eaa48) and adoption-matrix fixtures breaking on customised scripts (D-022, commit 79bd6c4).
 
 ## Verification Evidence
@@ -30,6 +30,8 @@ Fill this at session end for large sessions; keep it current otherwise.
 | Feature gate | `npm run verify-feature -- feat-005` | pass | evidence in `.harness/state/feat-005.json`; 303 backend tests |
 | Feature gate | `npm run verify-feature -- feat-006` | pass | evidence in `.harness/state/feat-006.json`; 371 backend tests |
 | Feature gate | `npm run verify-feature -- feat-007` | pass | evidence in `.harness/state/feat-007.json`; 426 backend tests |
+| Feature gate | `npm run verify-feature -- feat-008` | pass | 432 backend + 25 frontend tests; ESLint, tsc, vite build |
+| Live dashboard | browser pane: Vite + API + worker + dev DB + Redis | queue live-updates, filters, error/retry, light/dark, phone/tablet | processes and containers cleaned up |
 | Live worker | dev PostgreSQL + Redis, API and `npm run dev:worker` as separate processes | upload 201 `uploaded` in ~120 ms; `needs_review` ~3 s later | containers and worker processes cleaned up |
 | Live review | dev DB (migrations 0001-0003), server, extract + edit + approve, stale version, reject paths | 200 / 409 / 422 as designed; trail shows editor and approver | temporary container removed |
 | Live extraction | dev DB, migrations 0001 and 0002, server, upload + `POST /invoices/{id}/extract` | ground-truth fields, confidence, 4-event trail, 409 on repeat | temporary container removed |
@@ -54,6 +56,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - D-002: stack and scope (invoices, React, synthetic data, AI behind an interface, human approval required).
 - D-003: backend tooling runs through the `tools/py.mjs` launcher wired into the harness scripts.
 - D-004: `e2e` stays a SKIP placeholder until real end-to-end tests exist (planned feat-009 / feat-011).
+- D-012: React 19 + TS strict + Vite 7 + Tailwind v4 + shadcn-style primitives + TanStack Query; generated OpenAPI client with drift tests; polling 2 s / 15 s; numbers in viewer locale, words in UI language; dev proxy answers 502 when the API is down; `tools/web.mjs` joins the frontend to the gates; frontend needs Node 20.19+ (harness still 18).
 - D-010: extraction runs in a worker; small reliable queue on redis-py (ready list, delayed zset, per-worker processing list, at-least-once, idempotent steps); attempt = begin / provider call outside any transaction / complete or fail; retries for provider errors and rejected output (3 attempts, 5 s doubling); `failed` status; enqueue after commit plus a periodic sweep; `POST /extract` queues (202).
 - D-009: review requests carry the invoice `version` (audit event count) and get 409 when stale; edits are audited `fields_edited` events with old/new values (no event for a no-op); approval needs vendor name, invoice number, issue date, currency and total; 422 detail is `{message, errors}`.
 - D-008: one output contract and validator in the domain; providers return raw output; accepted output is recorded as `extraction_recorded` with confidence, rejected output as `extraction_rejected` with errors (invoice stays `extracting`); `fake` matches documents by SHA-256 against the samples; `openai` uses the Responses API with a strict schema, `store=False`, default model `gpt-5.4-mini`.
@@ -71,8 +74,10 @@ Fill this at session end for large sessions; keep it current otherwise.
 - The e2e layer is not verified; do not treat a green `npm run check` as end-to-end evidence yet.
 - `npm run check` needs Docker Desktop running (it is installed on the author's machine but set to start manually). Without it the database tests fail with a message saying so. `docker compose` (feat-011) is still untested.
 - New audit actions must be added to `AuditAction`, `_NOTE_RULES` in `domain/invoice.py` (or as status changes) and the `ck_audit_events_action` check in a new migration, together (0002 and 0003 show the pattern, including a downgrade that refuses to drop events).
-- `npm run check` needs Docker running for PostgreSQL and Redis test containers.
-- On Windows, stopping `npm run dev:worker` from a tool that kills only the npm process can leave the Python worker running; Ctrl+C in a terminal stops it cleanly.
+- `npm run check` needs Docker running for PostgreSQL and Redis test containers, plus `npm run setup:frontend` once and Node 20.19+.
+- Frontend tests run under jsdom; three jsdom-vs-Node mismatches are handled in `frontend/src/test/` (Node `FormData`, a declarative `MemoryRouter`, skipped animations). Keep using `renderApp` and `pdfFile`/`testFile` helpers for new tests.
+- After changing the API, run `npm run api:types` (both drift tests fail otherwise).
+- On Windows, stopping `npm run dev:worker` (or the API / Vite) from a tool that kills only the npm process can leave the child process running; Ctrl+C in a terminal stops them cleanly.
 - Reads load an invoice in one SQL statement on purpose (one snapshot); do not switch them back to separate eager-load queries.
 - The OpenAI provider has never been called for real: only its request shape and error mapping are tested with a stub. Try it once with a real key before relying on it.
 - Confidence from OpenAI is the model's own estimate; present it as a hint in the review UI (feat-009).
@@ -90,4 +95,4 @@ Fill this at session end for large sessions; keep it current otherwise.
 
 ## Recommended Next Step
 
-- Start feat-008 (review queue UI): sprint contract in `docs/sprints/feat-008.md`, set `.harness/state/feat-008.json` to active. Scaffold `frontend/` (React + TypeScript, Vite), wire its lint, typecheck, test and build into the root npm scripts next to the backend (as D-003 did), and build the queue list with status filters plus loading, empty and error states against the existing API (`GET /invoices`, `version`, `confidence`). Then `npm run verify-feature -- feat-008`.
+- Start feat-009 (review detail UI): sprint contract in `docs/sprints/feat-009.md`, set `.harness/state/feat-009.json` to active. Replace `frontend/src/features/invoice/InvoicePage.tsx` with the review screen from the plan: pdf.js viewer beside editable fields with confidence, click-a-field-to-highlight in the PDF text layer (best effort, try local number/date formats), totals check, approve / reject with `version`, audit timeline, 409 conflict banner, keyboard shortcuts. Add Playwright e2e against the real stack to replace the `e2e` SKIP (D-004). Then `npm run verify-feature -- feat-009`.

@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (feat-001 to feat-007 passing; next: feat-008)
+- Current active feature (or none): none (feat-001 to feat-008 passing; next: feat-009)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -75,7 +75,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 
 ### Session 005 — 2026-10-13
 
-- Goal: feat-006 (review and approval API) and feat-007 (background worker and queue).
+- Goal: feat-006 (review and approval API), feat-007 (background worker and queue) and feat-008 (review queue UI).
 - Completed:
   - Sprint contract `docs/sprints/feat-006.md`.
   - JSON field parsing moved to `domain/field_values.py` (shared by AI output and reviewer edits); `parse_field_patch` for partial edits.
@@ -85,12 +85,14 @@ Keep the "Current Verified State" block current at all times; the session log be
   - Test helper invoices now carry approvable fields (`READY_FIELDS`).
   - feat-007: sprint contract `docs/sprints/feat-007.md`; `failed` status (`extracting -> failed` by system with a reason; `failed -> extracting` / `failed -> rejected` by a user); `ExtractionService` split into `request` / `begin` / `complete` / `fail` / `requeue_stale_uploads`; `ExtractionRunner`; `services/queue.py` (`ExtractionQueue`, `AfterCommitQueue`); `infrastructure/queue.py` (reliable Redis queue); `invoice_intake/worker.py` and `npm run dev:worker`; `POST /invoices/{id}/extract` now queues (202); migration 0004; D-010. RQ ruled out: no `fork` / `SIGALRM` on Windows.
   - Published: public repo https://github.com/maideps/ai-invoice-intake (`main` pushed). `LICENSE` names the author (keeping the framework's MIT line for the harness files) and the inherited framework CI is switched to manual runs (D-011).
+  - feat-008: sprint contract `docs/sprints/feat-008.md`; `frontend/` (React 19, TypeScript strict, Vite 7, Tailwind v4, shadcn-style primitives, TanStack Query, React Router, Motion, sonner, self-hosted Inter); review queue with status overview and URL filters, drop-zone upload, live list (2 s while busy, 15 s idle), loading / empty / stale / error states, theme toggle, "acting as" (`X-User`); placeholder detail page; `GET /invoices/stats`; OpenAPI export and generated client with drift tests on both sides; `tools/web.mjs` and root scripts (`setup:frontend`, `dev:frontend`, `api:types`; lint, typecheck, test and build now include the frontend). D-012. Plan and concept mockup shared in chat first; author chose calm and clean, system theme.
+  - Live check in the browser pane (dev PostgreSQL, Redis, API, worker, Vite): phone and tablet widths, light and dark; queued-to-needs-review without reload; API down then retry; filters in the URL; detail placeholder. Fixed from it: idle refresh (uploads by others never appeared), words in the UI language vs numbers in the viewer locale (the pane's Spanish locale showed "ahora"), a 502 from the dev proxy so "can't reach the API" is said plainly, a stale-data notice, and wording ("Nothing in Failed").
   - The worker end-to-end test found a real race (a read pairing an old invoice row with newer audit events); reads now load in one statement, with a regression test.
   - Live check: dev PostgreSQL and Redis containers, API via the preview pane, worker as a separate process; upload answered in about 120 ms with `uploaded`, the worker reached `needs_review` about 3 s later. Containers, launch config and worker processes cleaned up (on Windows, stopping the npm wrapper left the Python worker running; it was stopped by hand).
   - Live check: dev DB with migrations 0001-0003, server, upload + extract + edit + stale approve (409) + approve, and reject without reason / approve without total (422) then reject; temporary container and launch config removed.
-- Verification run: `npm run verify-feature -- feat-006` and `-- feat-007`; `npm run check-arch`; 426 backend tests (PostgreSQL and Redis ones included; worker and queue tests repeated three times without flakiness), ruff, mypy --strict.
-- Evidence captured: `.harness/state/feat-006.json` and `feat-007.json` (written by verify-feature).
-- Commits: 4a69540 (feat-005), 351f554 (feat-006); feat-007 is the next commit.
+- Verification run: `npm run verify-feature -- feat-006`, `-- feat-007` and `-- feat-008`; `npm run check-arch`; 432 backend tests (PostgreSQL and Redis ones included; worker and queue tests repeated three times without flakiness), ruff, mypy --strict; 25 frontend tests, ESLint (zero warnings), `tsc` strict, `vite build`.
+- Evidence captured: `.harness/state/feat-006.json`, `feat-007.json` and `feat-008.json` (written by verify-feature).
+- Commits: 4a69540 (feat-005), 351f554 (feat-006), d34e070 (feat-007), fbcd862 (LICENSE and CI, D-011); feat-008 is the next commit.
 - Files or artifacts updated: backend/src/invoice_intake/domain/ (field_values.py, extraction.py, invoice.py, audit.py), services/review.py, api/review.py, api/schemas.py, api/dependencies.py, main.py, migrations/versions/rev_0003_*, tests, README.md, docs/ARCHITECTURE.md, DECISIONS.md, docs/quality-document.md, docs/sprints/feat-006.md, PROGRESS.md, session-handoff.md.
-- Known risk or unresolved issue: the acting user is still the trusted `X-User` header; the approval field list is a fixed rule (D-009); the OpenAI provider is still untried with a real key; `npm run check` now needs Docker for PostgreSQL and Redis; several workers need distinct `INVOICE_INTAKE_WORKER_ID`s.
-- Next best step: feat-008 (React + TypeScript review queue UI), sprint contract first; the frontend joins the harness gates.
+- Known risk or unresolved issue: the acting user is still the trusted `X-User` header; the approval field list is a fixed rule (D-009); the OpenAI provider is still untried with a real key; `npm run check` now needs Docker for PostgreSQL and Redis; several workers need distinct `INVOICE_INTAKE_WORKER_ID`s; the frontend needs Node 20.19+ and `npm run setup:frontend` before `npm run check`.
+- Next best step: feat-009 (review detail UI: PDF beside editable fields, click-to-highlight, confidence, totals check, approve/reject, audit timeline, conflict handling, keyboard shortcuts, Playwright e2e replacing the SKIP), sprint contract first.

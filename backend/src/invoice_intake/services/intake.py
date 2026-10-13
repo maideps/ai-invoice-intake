@@ -96,6 +96,11 @@ class IntakeService:
     def list_page(self, *, status: InvoiceStatus | None, limit: int, offset: int) -> InvoicePage:
         return self._invoices.list_page(status=status, limit=limit, offset=offset)
 
+    def stats(self) -> dict[InvoiceStatus, int]:
+        """Invoices per status, with every status present (zero when there are none)."""
+        counts = self._invoices.count_by_status()
+        return {status: counts.get(status, 0) for status in InvoiceStatus}
+
     def document(self, invoice_id: UUID) -> Document:
         document = self._invoices.get_document(invoice_id)
         if document is None:

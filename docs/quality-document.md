@@ -14,13 +14,13 @@ Rate each module on a scale of A (excellent) / B (good) / C (acceptable) / D (ne
 | AI extraction (domain contract, providers, service, extract API) | A | A | A | A | B |
 | review and approval (field values, review service, review API) | A | A | A | A | A |
 | background extraction (queue, runner, worker) | A | A | A | A | B |
-| frontend | not started | not started | not started | not started | not started |
+| frontend (shell, review queue) | A | A | B | A | B |
 
 ## Summary
 
-- **Overall Quality Grade:** B (backend complete through review, with background extraction; no export or UI yet)
+- **Overall Quality Grade:** B (backend complete through review with background extraction; dashboard has the review queue; no review screen or export yet)
 - **Blockers:** none
-- **Areas requiring attention:** frontend not started; no export yet; the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
+- **Areas requiring attention:** the review detail screen is a placeholder (feat-009); no export yet; the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
 
 ## Notes
 
@@ -32,6 +32,7 @@ Rate each module on a scale of A (excellent) / B (good) / C (acceptable) / D (ne
 - Session 004 (feat-005) added AI extraction: one output contract and validator in the domain, `fake` and `openai` providers behind a startup-time factory, extraction audit events with JSON details (migration 0002), and `POST /invoices/{id}/extract`. 303 backend tests: every committed sample extracted with the fake provider matches its ground truth; 23 kinds of invalid output rejected and recorded; the OpenAI request shape and error mapping checked with a stub (no network). Checked live: sample extracted to `needs_review` with confidence, 409 on repeat, startup refused for `openai` without a key. Performance B: the fake reads all samples at startup (12 files) and documents travel inline as base64 to OpenAI (fine up to the 10 MB upload limit).
 - Session 005 (feat-006) added human review: shared JSON field parsing (`domain/field_values.py`), audited edits with old/new values, approval requiring key fields, optimistic `version` checks, and `PATCH /fields`, `POST /approve`, `POST /reject`. 371 backend tests, including every review error status against PostgreSQL and migration 0003 up/down. Checked live: upload, extract, edit, stale approve (409), approve, reject without reason (422), approve without total (422), reject.
 - Session 005 (feat-007) moved extraction to a worker: `failed` status and transitions, the runner's three short transactions, a reliable Redis queue (ready list, delayed set, per-worker processing list), enqueue after commit plus a sweep, and migration 0004. 426 backend tests, including the queue against real Redis and the worker loop end to end (upload returns at once, retries, `failed`, retry on request, sweep), repeated three times without flakiness. The worker test found a real race (a read pairing an old invoice row with newer events), fixed by loading reads in one statement. Performance B: reads join line items and events (a small cartesian product per invoice).
+- Session 005 (feat-008) added the dashboard's first screen: the review queue (status overview and filters, drop-zone upload, live list with animated statuses, loading, empty, stale and error states, theme and "acting as"), the stats endpoint, and the generated API client. 25 frontend tests against an in-memory API plus a schema drift check; 432 backend tests. Checked live in light and dark mode at phone and tablet widths, including the queued-to-needs-review transition without a reload, the API going down and coming back, and filters in the URL. Documentation B (README, ARCHITECTURE.md, D-012; no component docs yet). Performance B: about 209 KB gzipped of JavaScript, split into cached library chunks; polling every 15 s when idle.
 
 ---
 

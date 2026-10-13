@@ -29,10 +29,10 @@
   ],
   "scripts": {
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run e2e",
-    "lint": "node scripts/framework-check.mjs lint && node tools/py.mjs -m ruff check . && node tools/py.mjs -m ruff format --check .",
-    "typecheck": "node scripts/framework-check.mjs typecheck && node tools/py.mjs -m mypy",
-    "test": "node scripts/framework-check.mjs test && node tools/py.mjs -m pytest -q",
-    "build": "node scripts/framework-check.mjs build && node tools/py.mjs -m compileall -q src",
+    "lint": "node scripts/framework-check.mjs lint && node tools/py.mjs -m ruff check . && node tools/py.mjs -m ruff format --check . && node tools/web.mjs lint",
+    "typecheck": "node scripts/framework-check.mjs typecheck && node tools/py.mjs -m mypy && node tools/web.mjs typecheck",
+    "test": "node scripts/framework-check.mjs test && node tools/py.mjs -m pytest -q && node tools/web.mjs test",
+    "build": "node scripts/framework-check.mjs build && node tools/py.mjs -m compileall -q src && node tools/web.mjs build",
     "e2e": "node tools/skip.mjs \"no end-to-end tests yet (planned: feat-009 and feat-011)\"",
     "dev": "node scripts/framework-check.mjs dev",
     "check-arch": "node scripts/framework-check.mjs check-arch",
@@ -61,10 +61,13 @@
     "help": "node scripts/framework-check.mjs help",
     "prepublishOnly": "npm run check && npm run check-arch",
     "setup:backend": "node tools/py.mjs setup",
+    "setup:frontend": "node tools/web.mjs setup",
     "dev:backend": "node tools/py.mjs -m uvicorn invoice_intake.main:app --reload --port 8000",
     "dev:worker": "node tools/py.mjs -m invoice_intake.worker",
+    "dev:frontend": "node tools/web.mjs dev",
     "db:migrate": "node tools/py.mjs -m alembic upgrade head",
-    "samples": "node tools/py.mjs tools/generate_samples.py"
+    "samples": "node tools/py.mjs tools/generate_samples.py",
+    "api:types": "node tools/py.mjs tools/export_openapi.py && node tools/web.mjs api:types"
   },
   "bin": {
     "create-harness": "scripts/create-harness.mjs",

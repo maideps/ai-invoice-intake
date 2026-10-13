@@ -63,6 +63,12 @@ class InMemoryInvoiceRepository:
     def get_document(self, invoice_id: UUID) -> Document | None:
         return self.documents.get(invoice_id)
 
+    def count_by_status(self) -> dict[InvoiceStatus, int]:
+        counts: dict[InvoiceStatus, int] = {}
+        for invoice in self._invoices.values():
+            counts[invoice.status] = counts.get(invoice.status, 0) + 1
+        return counts
+
 
 class ScriptedProvider:
     """An extraction provider that returns prepared outputs, or raises, in order."""

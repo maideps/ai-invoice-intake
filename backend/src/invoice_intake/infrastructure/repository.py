@@ -117,6 +117,12 @@ class SqlInvoiceRepository:
                 f"invoice {invoice.id} changed while saving; reload and retry"
             ) from error
 
+    def count_by_status(self) -> dict[InvoiceStatus, int]:
+        rows = self._session.execute(
+            select(InvoiceRow.status, func.count()).group_by(InvoiceRow.status)
+        )
+        return {InvoiceStatus(status): count for status, count in rows}
+
     def get_document(self, invoice_id: UUID) -> Document | None:
         row = self._session.get(DocumentRow, invoice_id)
         return None if row is None else Document(content_type=row.content_type, content=row.content)

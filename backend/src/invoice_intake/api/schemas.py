@@ -138,6 +138,11 @@ class InvoicePageOut(BaseModel):
         )
 
 
+class StatsOut(BaseModel):
+    total: int
+    by_status: dict[InvoiceStatus, int]  # every status, zero when there are none
+
+
 # Request bodies for review. `version` is the invoice version the reviewer last saw.
 
 

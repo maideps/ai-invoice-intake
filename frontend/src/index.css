@@ -1,0 +1,106 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/* Dark mode follows the `dark` class on <html> (set before first paint, see index.html). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens. Calm and neutral: zinc greys, one indigo accent, and status colours that
+ * carry meaning only. Every token has a dark-mode value; components use the tokens, never raw
+ * colours, so both themes stay consistent.
+ */
+:root {
+  --background: oklch(0.985 0.002 286);
+  --surface: oklch(1 0 0);
+  --surface-muted: oklch(0.967 0.003 286);
+  --foreground: oklch(0.21 0.006 286);
+  --muted: oklch(0.552 0.016 286);
+  --border: oklch(0.92 0.004 286);
+  --border-strong: oklch(0.871 0.006 286);
+  --accent: oklch(0.511 0.262 277);
+  --accent-soft: oklch(0.962 0.018 272);
+  --accent-foreground: oklch(1 0 0);
+  --ring: oklch(0.585 0.233 277 / 0.45);
+
+  --status-neutral: oklch(0.552 0.016 286);
+  --status-neutral-soft: oklch(0.967 0.003 286);
+  --status-progress: oklch(0.511 0.262 277);
+  --status-progress-soft: oklch(0.962 0.018 272);
+  --status-review: oklch(0.555 0.163 49);
+  --status-review-soft: oklch(0.962 0.059 95);
+  --status-good: oklch(0.527 0.154 150);
+  --status-good-soft: oklch(0.962 0.044 157);
+  --status-info: oklch(0.5 0.134 242);
+  --status-info-soft: oklch(0.951 0.026 237);
+  --status-bad: oklch(0.577 0.245 27);
+  --status-bad-soft: oklch(0.936 0.032 17);
+}
+
+.dark {
+  --background: oklch(0.16 0.005 286);
+  --surface: oklch(0.21 0.006 286);
+  --surface-muted: oklch(0.25 0.006 286);
+  --foreground: oklch(0.967 0.001 286);
+  --muted: oklch(0.705 0.015 286);
+  --border: oklch(0.29 0.006 286);
+  --border-strong: oklch(0.37 0.012 286);
+  --accent: oklch(0.673 0.182 276);
+  --accent-soft: oklch(0.3 0.09 277);
+  --accent-foreground: oklch(0.16 0.005 286);
+  --ring: oklch(0.673 0.182 276 / 0.5);
+
+  --status-neutral: oklch(0.705 0.015 286);
+  --status-neutral-soft: oklch(0.27 0.006 286);
+  --status-progress: oklch(0.785 0.115 274);
+  --status-progress-soft: oklch(0.3 0.09 277);
+  --status-review: oklch(0.828 0.14 85);
+  --status-review-soft: oklch(0.3 0.06 70);
+  --status-good: oklch(0.792 0.153 160);
+  --status-good-soft: oklch(0.29 0.06 160);
+  --status-info: oklch(0.785 0.115 237);
+  --status-info-soft: oklch(0.29 0.06 240);
+  --status-bad: oklch(0.71 0.166 22);
+  --status-bad-soft: oklch(0.3 0.08 20);
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}

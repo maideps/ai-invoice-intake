@@ -21,7 +21,7 @@ from invoice_intake.services.intake import (
 )
 
 from .dependencies import CurrentUser, ExtractionServiceDep, IntakeServiceDep
-from .schemas import AuditEventOut, InvoiceOut, InvoicePageOut
+from .schemas import AuditEventOut, InvoiceOut, InvoicePageOut, StatsOut
 
 T = TypeVar("T")
 
@@ -63,6 +63,14 @@ def list_invoices(
     """Invoices newest first, optionally filtered by status."""
     page = service.list_page(status=status, limit=limit, offset=offset)
     return InvoicePageOut.of(page, limit=limit, offset=offset)
+
+
+# Declared before "/{invoice_id}" so "stats" is not read as an invoice id.
+@router.get("/stats", response_model=StatsOut)
+def invoice_stats(service: IntakeServiceDep) -> StatsOut:
+    """How many invoices are in each status, for the queue header and its filters."""
+    by_status = service.stats()
+    return StatsOut(total=sum(by_status.values()), by_status=by_status)
 
 
 @router.get("/{invoice_id}", response_model=InvoiceOut)

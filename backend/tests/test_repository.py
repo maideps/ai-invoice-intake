@@ -277,3 +277,12 @@ def test_reads_load_an_invoice_in_one_statement(sessions: sessionmaker[Session])
 
     assert got_one == 1
     assert len(statements) == 3  # get, then list: count + one page query
+
+
+def test_count_by_status_groups_in_the_database(sessions: sessionmaker[Session]) -> None:
+    _store(sessions, invoice_in(S.UPLOADED), invoice_in(S.NEEDS_REVIEW), invoice_in(S.NEEDS_REVIEW))
+
+    with sessions() as session:
+        counts = SqlInvoiceRepository(session).count_by_status()
+
+    assert counts == {S.UPLOADED: 1, S.NEEDS_REVIEW: 2}

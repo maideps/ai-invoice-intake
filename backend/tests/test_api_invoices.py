@@ -159,3 +159,16 @@ def test_list_is_newest_first_with_paging_and_status_filter(client: TestClient) 
 )
 def test_bad_list_parameters_are_422(client: TestClient, params: dict[str, str | int]) -> None:
     assert client.get("/invoices", params=params).status_code == 422
+
+
+def test_stats_count_invoices_per_status(client: TestClient) -> None:
+    empty = client.get("/invoices/stats").json()
+    for _ in range(2):
+        client.post("/invoices", files={"file": ("a.pdf", SAMPLE.read_bytes(), "application/pdf")})
+
+    stats = client.get("/invoices/stats").json()
+
+    assert empty["total"] == 0 and set(empty["by_status"].values()) == {0}
+    assert stats["total"] == 2
+    assert stats["by_status"]["uploaded"] == 2
+    assert len(stats["by_status"]) == 7  # every status, zero when empty
