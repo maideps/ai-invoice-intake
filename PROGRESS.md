@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (all twelve features passing: feat-001 to feat-012)
+- Current active feature (or none): none (all thirteen features passing: feat-001 to feat-013)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -175,3 +175,35 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Files or artifacts updated: README.md, docs/images/, docs/ARCHITECTURE.md, docs/quality-document.md, docs/sprints/feat-012.md, DECISIONS.md, tools/check-docs.mjs, tools/screenshots.mjs, tools/lib/compose-stack.mjs, tools/compose-smoke.mjs, package.json (`screenshots`, lint), .harness/manifest.json (`productRoots`), PROGRESS.md, session-handoff.md.
 - Known risk or unresolved issue: the single failed cold build has no recorded cause, most likely a network error in pip; if it happens again, keep the full build log. The OpenAI provider has still never been called with a real key.
 - Next best step: none planned. Possible next features: authentication (replacing the trusted `X-User`), a real run of the OpenAI provider, image publishing.
+
+### Session 009 — 2026-10-13
+
+- Goal: stop the running app, then feat-013. The author asked to move the frontend and the backend under `repositories/`; they chose folders in this git repository over separate repositories.
+- Completed:
+  - Stopped the Compose stack (`docker compose down`, data kept) and closed its terminal tab.
+  - feat-013 added with `npm run add-feature`, with a repository-gates layer (`npm run verify-all`); sprint contract `docs/sprints/feat-013.md`.
+  - Moved with `git mv`:
+    - `backend/` to `repositories/backend/`
+    - `frontend/` to `repositories/frontend/` (`node_modules` moved with it)
+    - `frontend/src/api/openapi.json` to `contracts/openapi.json`
+
+    The template's `repositories/example` was removed, and the backend `.venv` was recreated.
+  - `repositories/{backend,frontend}/scripts/verify` (+ `verify.mjs`); `repositories/README.md` and `contracts/README.md` list them.
+  - Paths updated:
+    - the launchers, e2e, screenshots, compose file, Dockerfile notes, CI (caches, working directory, artifacts)
+    - the manifest's `productRoots` and the architecture rules' texts
+    - in code: the tests' repository root and the OpenAPI export target; the frontend's `api:types`, drift test and e2e sample
+    - `.env.example`, README (layout, repository gates), ARCHITECTURE, samples README
+  - Fixed: settings found the samples by counting folder levels, which crashed the migration in the image (`IndexError`, found by the compose smoke test). They now search upwards for `samples/`, with a test.
+  - D-017; quality document.
+- Verification run:
+  - `npm run verify-feature -- feat-013` (lint, test, verify-all, check with the e2e)
+  - `npm run verify-all` (backend 471 tests, frontend 61)
+  - `npm run check-arch`, `npm run compose:smoke`
+  - `npm run api:types`, which produces byte-identical files
+  - a search for old root paths, with none left outside history documents
+- Evidence captured: `.harness/state/feat-013.json` (written by verify-feature).
+- Commits: none yet; waiting for the author.
+- Files or artifacts updated: repositories/ (backend, frontend, README), contracts/ (openapi.json, README), tools/ (py, web, e2e, screenshots), docker-compose.yml, .github/workflows/ci.yml, .harness/manifest.json, .harness/arch-rules.json, feature_list.json, README.md, docs/ARCHITECTURE.md, docs/quality-document.md, docs/sprints/feat-013.md, samples/README.md, DECISIONS.md, PROGRESS.md, session-handoff.md.
+- Known risk or unresolved issue: any other checkout must run `npm run setup:backend` again after pulling (the old `.venv` points at `backend/`).
+- Next best step: commit and push feat-013 when the author agrees, and confirm CI.

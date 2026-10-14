@@ -313,6 +313,37 @@
           "repair": "Resolve remaining issues and rerun full verification."
         }
       ]
+    },
+    {
+      "id": "feat-013",
+      "name": "Repositories layout",
+      "behavior": "The backend and the frontend live in repositories/backend and repositories/frontend, each with its own scripts/verify run by npm run verify-all, and the OpenAPI contract between them lives in contracts/; every tool, image, compose file, CI step and document follows the new paths.",
+      "verification": "npm run verify-all runs both repositories and passes; npm run check, check-arch, the compose smoke test and CI pass from the new layout; nothing refers to the old paths.",
+      "dependencies": [
+        "feat-012"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis issues and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3a: Repository gates",
+          "cmd": "npm run verify-all",
+          "repair": "Fix the failing repository and rerun npm run verify-all."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve cross-layer issues and rerun full verification."
+        }
+      ]
     }
   ]
 }

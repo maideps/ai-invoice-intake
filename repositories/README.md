@@ -18,4 +18,7 @@ Rules:
 
 ## Existing Repositories
 
-[List your repositories here.]
+- `backend/` — the FastAPI service, the worker, the migrations and their tools (Python). `scripts/verify`: ruff, ruff format, mypy --strict, pytest (needs Docker), compile check. Set up with `npm run setup:backend` from the root.
+- `frontend/` — the React review dashboard (TypeScript). `scripts/verify`: ESLint, `tsc`, Vitest, production build. Set up with `npm run setup:frontend` from the root. The Playwright end-to-end tests need the whole stack and run from the root (`npm run e2e`).
+
+The two share one contract, `contracts/openapi.json` (see `contracts/README.md`).

@@ -5,8 +5,9 @@ Fill this at session end for large sessions; keep it current otherwise.
 ## Current Objective
 
 - Goal: build AI Invoice Intake, a portfolio project (FastAPI + PostgreSQL + Redis worker + React/TypeScript, OpenAI extraction behind an interface, human approval before export, all data synthetic) using ai-harness-framework, one feature at a time.
-- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI), feat-009 (review detail UI), feat-010 (export webhook), feat-011 (Docker Compose and CI) and feat-012 (README, diagram and demo) are `passing`. All twelve planned features are done.
-- Branch / commit: `main` (feat-011 `c72f3bc` pushed, CI green; feat-012 pushed after it), pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
+- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI), feat-009 (review detail UI), feat-010 (export webhook), feat-011 (Docker Compose and CI) feat-012 (README, diagram and demo) and feat-013 (repositories layout) are `passing`.
+- Branch / commit: `main` (feat-012 `0f1e9ec` and `823bf7a` pushed, CI green; feat-013 is not committed yet)
+- Layout (D-017): the code lives in `repositories/backend` and `repositories/frontend`, each with `scripts/verify` (`npm run verify-all`); the API contract is `contracts/openapi.json`. After pulling the move elsewhere, rerun `npm run setup:backend`., pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
 
 ## Completed This Session
 
@@ -18,6 +19,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - [x] Session 006: feat-010 export webhook: signed delivery per approval from the same worker (job kinds), retries with `export_failed` audit events, export state derived from the trail, "Retry export", migration 0005, e2e with a local receiver (D-014).
 - [x] Session 007: feat-011 `docker compose up --build` runs the whole product with seeded samples and a demo accounting receiver; backend and web images; `npm run compose:smoke`; the project's own GitHub Actions workflow (D-015).
 - [x] Session 008: feat-012 product-first README with screenshots, Mermaid diagrams and a decisions table; `npm run screenshots`; docs check in lint; five-minute start measured from a clean clone (D-016).
+- [x] Session 009: feat-013 moved the backend and frontend under `repositories/` with their own gates and the OpenAPI contract in `contracts/` (D-017); fixed the samples lookup that broke in the image.
 - [x] Fixed two bugs upstream in `ai-harness-framework` and applied them here with `harness-upgrade`: backup-id collisions (D-021, commit 53eaa48) and adoption-matrix fixtures breaking on customised scripts (D-022, commit 79bd6c4).
 
 ## Verification Evidence
@@ -35,6 +37,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 | Feature gate | `npm run verify-feature -- feat-007` | pass | evidence in `.harness/state/feat-007.json`; 426 backend tests |
 | Feature gate | `npm run verify-feature -- feat-008` | pass | 432 backend + 25 frontend tests; ESLint, tsc, vite build |
 | Feature gate | `npm run verify-feature -- feat-009` | pass, no SKIP | first run with a real e2e layer |
+| Feature gate | `npm run verify-feature -- feat-013` | pass, no SKIP | includes `npm run verify-all` (backend 471, frontend 61 tests) |
 | Feature gate | `npm run verify-feature -- feat-012` | pass, no SKIP | evidence in `.harness/state/feat-012.json` |
 | Five-minute start | fresh clone + `docker compose up --build`, empty buildx builder | 205 s and 299 s (with lint running on the same machine) | one earlier attempt failed in pip (cause not kept) |
 | Docs check | `node tools/check-docs.mjs` with planted errors | FAIL on missing image, bad anchor, unknown script | |
@@ -53,14 +56,14 @@ Fill this at session end for large sessions; keep it current otherwise.
 | No-Docker behaviour | tests with `DOCKER_HOST` pointing nowhere | database tests fail with the "need Docker running" message; the other 176 pass | |
 | Live API | dev DB on 5433, `db:migrate`, `dev:backend`, curl upload | 201, audit event, identical download, 415 for non-invoice | temporary container removed |
 | arch-008 can fail | planted infrastructure import in `api/` | FAIL as expected | file removed afterwards |
-| Samples reproducible | two runs, same seed; committed files vs fresh run | identical bytes | tested in `backend/tests/test_samples.py` |
+| Samples reproducible | two runs, same seed; committed files vs fresh run | identical bytes | tested in `repositories/backend/tests/test_samples.py` |
 | arch-007 can fail | planted `from invoice_intake.config import Settings` in the domain | FAIL as expected | file removed afterwards |
 | Harness matrix | `node scripts/adoption-matrix.mjs` | pass | all cells, with this repo's customised `package.json` |
 | Fresh-clone setup | `npm run setup:backend` then tests, ruff, mypy | pass | tested in a throwaway copy |
 
 ## Files Changed
 
-- `backend/` (new): app, tests, `pyproject.toml`, `.env.example`
+- `backend/` (new; since feat-013 `repositories/backend/`): app, tests, `pyproject.toml`, `.env.example`
 - `tools/py.mjs`, `tools/skip.mjs` (new); `package.json` scripts (`lint`, `typecheck`, `test`, `build`, `e2e`, `setup:backend`, `dev:backend`)
 - `docs/`, `README.md`, `DECISIONS.md` (D-001 to D-004), `PROGRESS.md`, `feature_list.json`, `.harness/manifest.json` (`productRoots`)
 - `scripts/` refreshed by `harness-upgrade` (CORE; do not edit by hand); `LICENSE` is CORE too, but its author line is restored by hand after each upgrade (D-011)
@@ -70,6 +73,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - D-002: stack and scope (invoices, React, synthetic data, AI behind an interface, human approval required).
 - D-003: backend tooling runs through the `tools/py.mjs` launcher wired into the harness scripts.
 - D-004: `e2e` stays a SKIP placeholder until real end-to-end tests exist (planned feat-009 / feat-011).
+- D-017: backend and frontend under `repositories/` (folders, one git repo), each with `scripts/verify` run by `verify-all`; `contracts/openapi.json` owned by the backend, consumed by the frontend; settings find `samples/` by searching upwards.
 - D-016: README product-first (run, walkthrough, diagrams, decisions; harness reference collapsed); `npm run screenshots` from the real stack; `tools/check-docs.mjs` in lint; the five-minute start measured from a clean clone.
 - D-015: `docker-compose.yml`: postgres, redis, migrate (one-shot), api, worker, seed (one-shot, only into an empty instance), accounting (demo receiver), web (nginx with `/api/` proxy). Only web 8080 and accounting 9000 are published. One backend image, with samples from a second build context. `tools/compose-smoke.mjs` runs on 8180/9180. CI: `check` (full harness check plus check-arch) and `compose` (smoke) on push and PR. The e2e stays on the dev servers.
 - D-014: export via the same worker (job `kind`); payload v1 with `Idempotency-Key`, per-attempt delivery id and HMAC-SHA256 signature; any 2xx succeeds; 5 attempts doubling from 10 s; `export_failed` audit events and a state derived from the trail; `POST /export` to start again; no URL = export off (invoices wait, health says so, sweep sends them later); at least once.
@@ -94,14 +98,14 @@ Fill this at session end for large sessions; keep it current otherwise.
 - New audit actions must be added to `AuditAction`, `_NOTE_RULES` in `domain/invoice.py` (or as status changes) and the `ck_audit_events_action` check in a new migration, together (0002 and 0003 show the pattern, including a downgrade that refuses to drop events).
 - `npm run check` needs Docker running (backend tests and e2e), plus `npm run setup:frontend` once (npm ci and Playwright's Chromium) and Node 20.19+. The e2e run needs ports 5434, 6380, 8100, 8101 and 5174 free. The webhook receiver lives inside `tools/e2e.mjs`, so anything it waits on must be async (a `spawnSync` blocks the receiver).
 - The browser pane in this app shows large emulated viewports at a fraction of their size; for full-resolution UI checks, take screenshots with Playwright's Chromium instead.
-- Frontend tests run under jsdom; three jsdom-vs-Node mismatches are handled in `frontend/src/test/` (Node `FormData`, a declarative `MemoryRouter`, skipped animations). Keep using `renderApp` and `pdfFile`/`testFile` helpers for new tests.
+- Frontend tests run under jsdom; three jsdom-vs-Node mismatches are handled in `repositories/frontend/src/test/` (Node `FormData`, a declarative `MemoryRouter`, skipped animations). Keep using `renderApp` and `pdfFile`/`testFile` helpers for new tests.
 - After changing the API, run `npm run api:types` (both drift tests fail otherwise).
 - On Windows, stopping `npm run dev:worker` (or the API / Vite) from a tool that kills only the npm process can leave the child process running; Ctrl+C in a terminal stops them cleanly.
 - Reads load an invoice in one SQL statement on purpose (one snapshot); do not switch them back to separate eager-load queries.
 - The OpenAI provider has never been called for real: only its request shape and error mapping are tested with a stub. Try it once with a real key before relying on it.
 - Confidence from OpenAI is the model's own estimate; present it as a hint in the review UI (feat-009).
 - The `X-User` header is trusted as-is; there is no authentication (non-goal for version 1).
-- Ground-truth helpers are in `backend/tools/samplegen/`; feat-005's fake provider may need them moved into the app package.
+- Ground-truth helpers are in `repositories/backend/tools/samplegen/`; feat-005's fake provider may need them moved into the app package.
 - Upgrading ReportLab changes the PDF bytes: run `npm run samples` and commit the result.
 - In the earlier sandbox, mypy's cache failed on a mounted drive (not seen on Windows); if mypy errors with a cache or sqlite message, set `MYPY_CACHE_DIR` to a normal local folder.
 

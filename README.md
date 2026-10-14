@@ -91,7 +91,7 @@ What holds it together:
 
 **Export.** Approving an invoice queues an export job. The worker posts the invoice as JSON to `INVOICE_INTAKE_EXPORT_WEBHOOK_URL` (the stand-in for an accounting system) and moves it to `exported` on any 2xx answer. Non-2xx answers, timeouts and connection errors are retried (`INVOICE_INTAKE_EXPORT_MAX_ATTEMPTS`, default 5, with doubling waits from `INVOICE_INTAKE_EXPORT_RETRY_BASE_SECONDS`, default 10), and each failed attempt is recorded in the audit trail. After the last attempt the review screen offers "Retry export" (`POST /invoices/{id}/export`, 202). Only approved invoices are ever sent. The body carries `payload_version`, the invoice id, file name, who approved it and when, the audit version and the fields in the API's format. Each request has an `Idempotency-Key` (the invoice id, the same on every attempt), a per-attempt `X-Invoice-Intake-Delivery` id, and, when `INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET` is set, `X-Invoice-Intake-Signature: sha256=<HMAC-SHA256 of the body>`. Delivery is at least once, so receivers should drop duplicates by `Idempotency-Key`. Without a URL, export is off: approved invoices wait, the screen says so, and `GET /health` reports `export_configured: false` (D-014).
 
-**Dashboard.** `frontend/` is React 19 + TypeScript (strict) on Vite 7, styled with Tailwind CSS v4 and small shadcn/ui-style components, with TanStack Query for server state (D-012). The review queue shows a count per status (doubling as filters, kept in the URL), a drop zone for uploads, and a list that refreshes every 2 seconds while the worker is busy (15 seconds otherwise), so invoices visibly move from queued to needs review. It has loading, empty and error states, light and dark themes (following the system by default), and an "acting as" name that is sent as `X-User`. API types are generated from FastAPI's OpenAPI document (`npm run api:types`); tests fail if they drift.
+**Dashboard.** `repositories/frontend/` is React 19 + TypeScript (strict) on Vite 7, styled with Tailwind CSS v4 and small shadcn/ui-style components, with TanStack Query for server state (D-012). The review queue shows a count per status (doubling as filters, kept in the URL), a drop zone for uploads, and a list that refreshes every 2 seconds while the worker is busy (15 seconds otherwise), so invoices visibly move from queued to needs review. It has loading, empty and error states, light and dark themes (following the system by default), and an "acting as" name that is sent as `X-User`. API types are generated from FastAPI's OpenAPI document (`npm run api:types`); tests fail if they drift.
 
 **Review screen.** Opening an invoice shows the original PDF (pdf.js, with its text layer) beside the extracted fields. Selecting a field finds its value in the document and highlights it, trying local formats such as `3 627,23` and `14/02/2026`. Low-confidence fields are tinted amber, with a "next low-confidence field" button. A totals check confirms the lines add up to the subtotal and the subtotal plus tax to the total, in exact cents. Edits, approval and rejection send the invoice `version`; a conflict shows a reload banner instead of an error. The audit trail reads as a timeline, and the keyboard works too (`J`/`K`, `E`, `S`, `A`, `R`, `?`).
 
@@ -122,8 +122,8 @@ Each decision is recorded with its context, the alternatives and the consequence
 To work on the code, run the pieces locally. You need Node.js 20.19 or newer, Python 3.10 or newer (developed on 3.14) and Docker (the database, Redis, and the tests' throwaway containers).
 
 ```bash
-npm run setup:backend   # creates backend/.venv and installs the backend with dev tools
-npm run setup:frontend  # installs frontend/ dependencies (npm ci)
+npm run setup:backend   # creates repositories/backend/.venv and installs the backend with dev tools
+npm run setup:frontend  # installs repositories/frontend/ dependencies (npm ci)
 docker run -d --name invoice-intake-db -p 5433:5432 -e POSTGRES_USER=invoice_intake -e POSTGRES_PASSWORD=invoice_intake -e POSTGRES_DB=invoice_intake postgres:16-alpine
 docker run -d --name invoice-intake-redis -p 6379:6379 redis:7-alpine
 npm run db:migrate      # applies the Alembic migrations
@@ -138,24 +138,27 @@ curl -X POST -H "X-User: you" -H "Content-Type: application/json" -d '{"version"
 npm run samples         # regenerate the synthetic invoices in samples/invoices
 ```
 
-Configuration comes from `INVOICE_INTAKE_*` environment variables (see [`backend/.env.example`](backend/.env.example)). The development database listens on port 5433 so it does not clash with a local PostgreSQL.
+Configuration comes from `INVOICE_INTAKE_*` environment variables (see [`repositories/backend/.env.example`](repositories/backend/.env.example)). The development database listens on port 5433 so it does not clash with a local PostgreSQL.
 
 **Checks.** `npm run check` is the full gate: lint (ruff, ESLint, and a docs check that every link, image and `npm run` script in the docs resolves), typecheck (mypy --strict, `tsc`), tests (pytest, Vitest), build, and the end-to-end tests. `npm run check-arch` enforces the architecture rules.
 
-`npm run test` needs Docker running: the database and queue tests start their own `postgres:16-alpine` and `redis:7-alpine` containers and fail with a clear message when Docker is not available. To run everything else without Docker, from `backend/`: `python -m pytest -m "not postgres and not redis"`.
+`npm run test` needs Docker running: the database and queue tests start their own `postgres:16-alpine` and `redis:7-alpine` containers and fail with a clear message when Docker is not available. To run everything else without Docker, from `repositories/backend/`: `python -m pytest -m "not postgres and not redis"`.
 
 `npm run e2e` (part of `npm run check`) runs the end-to-end tests on the real stack (D-013): it starts throwaway PostgreSQL and Redis containers, applies the migrations, starts the API, the worker and the web app on their own ports, plus a local webhook receiver, and drives Chromium through upload, extraction, review, a correction and an approval, then checks that exactly one signed delivery reached the receiver and the screen shows the invoice as exported. Everything is torn down afterwards, also on failure.
 
 `npm run compose:smoke` builds the Compose stack as a separate project on other ports (8180, 9180), checks it through nginx (every built asset's content type, the 12 seeded samples extracted, an upload, an approval and its signed export), and removes it again. GitHub Actions runs `npm run check`, `npm run check-arch` and the compose smoke test on every push and pull request ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
+The backend and the frontend each have their own gate: `npm run verify-all` runs `repositories/backend/scripts/verify` (ruff, mypy, pytest, compile check) and `repositories/frontend/scripts/verify` (ESLint, `tsc`, Vitest, build); either also runs alone with `node repositories/<name>/scripts/verify` (D-017).
+
 `npm run screenshots` regenerates the images on this page from the real Compose stack (the same data and screens every time), and `npm run api:types` regenerates the frontend's API types after an API change.
 
 ```text
-backend/    FastAPI service and worker: api/, services/, domain/, infrastructure/; migrations/; tests/; tools/
-frontend/   React dashboard: src/features/ (queue, review), src/api/ (generated client); e2e/ (Playwright)
-samples/    the 12 synthetic invoices and their ground truth
-tools/      launchers and scripts: e2e, compose smoke test, screenshots, docs check
-docs/       architecture, product, quality, sprint contracts
+repositories/backend/    FastAPI service and worker: api/, services/, domain/, infrastructure/; migrations/; tests/; tools/
+repositories/frontend/   React dashboard: src/features/ (queue, review), src/api/ (generated client); e2e/ (Playwright)
+contracts/               openapi.json: the API contract between the two
+samples/                 the 12 synthetic invoices and their ground truth
+tools/                   launchers and scripts: e2e, compose smoke test, screenshots, docs check
+docs/                    architecture, product, quality, sprint contracts
 ```
 
 ## How it was built

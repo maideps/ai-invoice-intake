@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Runs the frontend's npm scripts from the repository root, the way tools/py.mjs runs the backend.
 //
-//   node tools/web.mjs setup        install frontend/ dependencies (npm ci) and Playwright's Chromium
-//   node tools/web.mjs <script>     run a frontend/package.json script (lint, typecheck, test, build, dev)
+//   node tools/web.mjs setup        install repositories/frontend/ dependencies (npm ci) and Playwright's Chromium
+//   node tools/web.mjs <script>     run a repositories/frontend/package.json script (lint, typecheck, test, build, dev)
 //
 // The harness gates (npm run lint / typecheck / test / build) call this launcher, so a missing
 // install or a too-old Node says so plainly instead of failing deep inside a tool.
@@ -13,7 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const frontend = path.join(root, "frontend");
+const frontend = path.join(root, "repositories", "frontend");
 const MIN_NODE = [20, 19];
 
 function nodeIsRecentEnough() {

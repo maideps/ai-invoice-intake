@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+// Entry point for `npm run verify-all` (Node runs this file directly). The checks live in
+// verify.mjs; a dynamic import loads it whether Node treats this file as CommonJS or ESM.
+import("./verify.mjs").catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

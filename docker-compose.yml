@@ -14,7 +14,7 @@ name: invoice-intake
 
 x-backend: &backend
   build:
-    context: backend
+    context: repositories/backend
     additional_contexts:
       samples: samples
   image: invoice-intake-backend:local
@@ -107,7 +107,7 @@ services:
     restart: unless-stopped
 
   web:
-    build: frontend
+    build: repositories/frontend
     image: invoice-intake-web:local
     ports:
       - "${INVOICE_INTAKE_WEB_PORT:-8080}:80"

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Runs Python tooling for the backend with the right interpreter, from any OS.
 //
-//   node tools/py.mjs setup                create backend/.venv and install the backend with dev tools
-//   node tools/py.mjs -m pytest -q         run a Python module inside backend/
+//   node tools/py.mjs setup                create repositories/backend/.venv and install the backend with dev tools
+//   node tools/py.mjs -m pytest -q         run a Python module inside repositories/backend/
 //
-// Interpreter order: $INVOICE_INTAKE_PYTHON, backend/.venv, then python3 / python on PATH.
+// Interpreter order: $INVOICE_INTAKE_PYTHON, repositories/backend/.venv, then python3 / python on PATH.
 // The harness gates (npm run lint / typecheck / test / build) call this launcher so they
 // behave the same on Windows, macOS and Linux.
 
@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const backend = path.join(root, "backend");
+const backend = path.join(root, "repositories", "backend");
 
 function works(cmd) {
   return spawnSync(cmd, ["--version"], { stdio: "ignore" }).status === 0;

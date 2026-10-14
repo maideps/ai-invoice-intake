@@ -19,7 +19,7 @@ const REVIEWER = "Sam Rivera";
 const VIEWPORT = { width: 1440, height: 900 };
 
 // Playwright is a frontend dev dependency; load it from there.
-const { chromium } = createRequire(path.join(root, "frontend", "package.json"))("@playwright/test");
+const { chromium } = createRequire(path.join(root, "repositories", "frontend", "package.json"))("@playwright/test");
 
 const stack = new ComposeStack({
   project: "invoice-intake-screenshots",

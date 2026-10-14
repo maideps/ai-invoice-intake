@@ -344,3 +344,27 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: the first screen of the repository shows the product. Broken links, images or script names fail the lint. The screenshots can always be regenerated.
 - Negative: `npm run screenshots` needs Docker and Playwright's Chromium and takes about a minute. The measured start time depends on the network.
+
+### D-017: Backend and frontend as repositories of the multi-repo component, in one git repository
+
+**Date:** 2026-10-13
+**Status:** accepted
+**Context:** The author asked to move the backend and the frontend under `repositories/`. The harness's multi-repo component was already present but held only the template's `example`. Two shapes were possible: folders in this git repository, or separate GitHub repositories as submodules. The author chose folders.
+**Decision:**
+- `backend/` moves to `repositories/backend/` and `frontend/` to `repositories/frontend/`, with `git mv`, so file history follows. The template's `repositories/example` is removed.
+- Each repository has its own gate, `scripts/verify`, which `npm run verify-all` runs:
+  - backend: ruff, ruff format, mypy --strict, pytest, compile check, with its own `.venv`
+  - frontend: ESLint, `tsc`, Vitest, build, with its own `node_modules`
+
+  The extension-less `verify` only does `import("./verify.mjs")`. That works whether Node loads the file as CommonJS (the backend) or as ESM (the frontend, whose `package.json` says `"type": "module"`).
+- The OpenAPI document becomes a cross-repository contract, `contracts/openapi.json`, owned by the backend and consumed by the frontend. Both drift tests read it there.
+- The root stays the control plane: the launchers, `docker-compose.yml`, the e2e and smoke tests, CI and the harness files. Every root command works as before.
+- Code no longer counts folder levels to find the samples. Settings search upwards for the folder that holds `samples/`. Counting broke in the image, where Alembic imports the package from `/app/src`; the compose smoke test caught it.
+- History documents (past sprint contracts, decisions, progress entries, the feat-001 declaration) keep the old paths: they describe what was true then.
+**Alternatives considered:**
+- Separate GitHub repositories as submodules — Not chosen by the author. It means three repositories, three CIs, a split history and `--recurse-submodules` for every reader.
+- Keeping `openapi.json` in the frontend — Rejected: it is written by the backend and read by the frontend, which is what `contracts/` is for.
+- Running `verify-all` in CI as well — Not now: `npm run check` already runs the same tools over both repositories, so it would double the CI time for no new coverage.
+**Consequences:**
+- Positive: the layout matches the harness's multi-repo model. Each side can be verified alone. The API contract has one visible home with an owner and a consumer.
+- Negative: paths are one level deeper. A checkout's `.venv` must be recreated after the move (`npm run setup:backend`), because an editable install records its path.

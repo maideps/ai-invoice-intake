@@ -16,7 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const frontend = path.join(root, "frontend");
+const frontend = path.join(root, "repositories", "frontend");
 const windows = process.platform === "win32";
 
 const PORTS = { postgres: 5434, redis: 6380, api: 8100, web: 5174, webhook: 8101 };

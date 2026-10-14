@@ -142,8 +142,8 @@
     ".harness/traces/.gitkeep"
   ],
   "productRoots": [
-    "backend/",
-    "frontend/",
+    "repositories/backend/",
+    "repositories/frontend/",
     "samples/",
     "docker-compose.yml",
     ".github/workflows/publish.yml",

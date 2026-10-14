@@ -14,4 +14,8 @@ Rules:
 
 ## Existing Contracts
 
-[List your contracts here, one section per contract.]
+### `openapi.json` — the invoice API
+
+- **Owner:** `repositories/backend`. FastAPI generates it; `npm run api:types` (from the root) writes this file and then the frontend's types.
+- **Consumers:** `repositories/frontend` (`src/api/schema.d.ts` is generated from it, and the typed client uses those types).
+- **Checks:** a backend test fails when this file differs from what the API serves; a frontend test fails when `schema.d.ts` was not regenerated from it. Change the API, run `npm run api:types`, and commit the three together.
