@@ -394,3 +394,14 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: the same versions on every machine and every day, verified by hash; upgrades are deliberate commits; the image and the tests run the same versions.
 - Negative: two generated files of about 3,000 lines in the repository. Adding a package now needs `npm run lock:backend` (the test says so). A fresh `setup:backend` on Windows took about 4 minutes.
+
+### D-020: Small clock steps don't refuse an action
+
+**Date:** 2026-10-14
+**Status:** accepted
+**Context:** The domain refused any audit event earlier than the previous one ("audit events must not go back in time"). Events are stamped by different processes (the API and the worker) using wall clocks, and a wall clock can step back: NTP corrections, or the time sync of the virtual machine behind Docker Desktop on Windows. Regenerating the screenshots hit it once: a reviewer's edit, made just after the worker finished, was refused with a 422.
+**Decision:** An event up to `CLOCK_TOLERANCE` (5 seconds) earlier than the previous event is recorded at the previous event's time. The trail stays in order (its sequence numbers are the authority anyway), and the person's action goes through. An event more than 5 seconds earlier is still refused, because that means a clock is badly wrong and should be noticed.
+**Alternatives considered:**
+- Database time (`now()`) for every event — Rejected: the domain builds events before saving them, and tests use injected clocks. Clamping in one domain method keeps both.
+- Dropping the rule — Rejected: a trail out of order is misleading, and a large skew is worth refusing.
+**Consequences:** An event stamped by a slightly late clock shows the previous event's time instead of its own, which is off by at most 5 seconds.

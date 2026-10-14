@@ -4,7 +4,7 @@ import json
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID, uuid4
@@ -31,6 +31,9 @@ _NOTE_RULES: dict[AuditAction, tuple[InvoiceStatus, ActorKind]] = {
 }
 
 EXPORTER = Actor(ActorKind.SYSTEM, "export-service")
+# How far a clock may lag behind the previous event before it counts as wrong (see
+# Invoice._next_event_time).
+CLOCK_TOLERANCE = timedelta(seconds=5)
 
 
 @dataclass(frozen=True)
@@ -392,9 +395,7 @@ class Invoice:
                 f"only a {required_kind.value} actor may record {action.value}, "
                 f"not a {actor.kind.value} actor"
             )
-        require_aware(at, "at")
-        if at < self._events[-1].occurred_at:
-            raise InvalidInvoiceDataError("audit events must not go back in time")
+        at = self._next_event_time(at)
         event = AuditEvent(
             invoice_id=self._id,
             sequence=len(self._events) + 1,
@@ -435,9 +436,7 @@ class Invoice:
             raise InvalidInvoiceDataError("a failure needs a reason")
         if target is InvoiceStatus.APPROVED and self.missing_for_approval:
             raise ApprovalBlockedError(self.missing_for_approval)
-        require_aware(at, "at")
-        if at < self._events[-1].occurred_at:
-            raise InvalidInvoiceDataError("audit events must not go back in time")
+        at = self._next_event_time(at)
 
         event = AuditEvent(
             invoice_id=self._id,
@@ -452,6 +451,23 @@ class Invoice:
         self._events.append(event)
         self._status = target
         return event
+
+    def _next_event_time(self, at: datetime) -> datetime:
+        """When the next event happened: never before the previous one.
+
+        Events come from different processes (the API, the worker), and a wall clock can step
+        back a little (NTP or virtual-machine time sync) or differ slightly between hosts. Within
+        CLOCK_TOLERANCE such an event is recorded at the previous event's time, so the trail stays
+        in order and a reviewer's action is not refused; beyond it the clock is wrong and the
+        event is refused.
+        """
+        require_aware(at, "at")
+        previous = self._events[-1].occurred_at
+        if at >= previous:
+            return at
+        if previous - at <= CLOCK_TOLERANCE:
+            return previous
+        raise InvalidInvoiceDataError("audit events must not go back in time")
 
     def __repr__(self) -> str:
         return f"Invoice(id={self._id}, filename={self._filename!r}, status={self._status.value})"

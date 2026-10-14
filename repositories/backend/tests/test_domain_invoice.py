@@ -1,5 +1,5 @@
 import dataclasses
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -176,6 +176,19 @@ def test_naive_timestamp_is_rejected() -> None:
         )
 
     assert invoice.status is S.UPLOADED
+
+
+def test_a_clock_a_little_behind_is_recorded_at_the_previous_event_time() -> None:
+    # The API and the worker stamp events with their own clocks, which can step back slightly.
+    invoice = invoice_in(S.EXTRACTING)
+    previous = invoice.events[-1].occurred_at
+
+    event = invoice.transition_to(
+        S.NEEDS_REVIEW, actor=ACTORS[ActorKind.SYSTEM], at=previous - timedelta(seconds=2)
+    )
+
+    assert event.occurred_at == previous
+    assert invoice.status is S.NEEDS_REVIEW
 
 
 def test_events_cannot_go_back_in_time() -> None:
