@@ -60,7 +60,6 @@ Each invoice moves through an explicit state machine in the domain layer. Every 
 
 ```mermaid
 stateDiagram-v2
-  direction LR
   [*] --> uploaded
   uploaded --> extracting: worker
   extracting --> needs_review: output passes the checks
