@@ -149,7 +149,8 @@
     ".github/workflows/publish.yml",
     "tools/",
     "docs/sprints/",
-    "docs/images/"
+    "docs/images/",
+    "docs/INSTALL.md"
   ],
   "optionalComponents": [
     {

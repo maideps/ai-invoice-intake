@@ -38,7 +38,7 @@ Out of scope: a hosted demo, a video, translating the README.
   - Clone the repository into a fresh folder.
   - Follow only the README: `docker compose up --build`, images built without the layer cache.
   - Time it until the dashboard shows the 12 invoices in "Needs review".
-- [ ] After the push: CI green; the README renders on GitHub (diagram, images, anchors).
+- [x] After the push: CI green (run 38490764282); the README renders on GitHub (diagram, images, anchors).
 
 ## What Success Looks Like
 

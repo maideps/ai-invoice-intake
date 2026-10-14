@@ -20,6 +20,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - [x] Session 007: feat-011 `docker compose up --build` runs the whole product with seeded samples and a demo accounting receiver; backend and web images; `npm run compose:smoke`; the project's own GitHub Actions workflow (D-015).
 - [x] Session 008: feat-012 product-first README with screenshots, Mermaid diagrams and a decisions table; `npm run screenshots`; docs check in lint; five-minute start measured from a clean clone (D-016).
 - [x] Session 009: feat-013 moved the backend and frontend under `repositories/` with their own gates and the OpenAPI contract in `contracts/` (D-017); fixed the samples lookup that broke in the image.
+- [x] Session 010: `docs/INSTALL.md`, a step-by-step install guide (run with Docker, everyday commands, `.env` settings, troubleshooting, development setup), linked from the README; `npm run seed` loads the samples into a development API.
 - [x] Fixed two bugs upstream in `ai-harness-framework` and applied them here with `harness-upgrade`: backup-id collisions (D-021, commit 53eaa48) and adoption-matrix fixtures breaking on customised scripts (D-022, commit 79bd6c4).
 
 ## Verification Evidence

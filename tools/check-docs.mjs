@@ -13,7 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DOCS = ["README.md", "docs/ARCHITECTURE.md", "docs/PRODUCT.md", "samples/README.md"];
+const DOCS = ["README.md", "docs/INSTALL.md", "docs/ARCHITECTURE.md", "docs/PRODUCT.md", "samples/README.md"];
 const scripts = new Set(Object.keys(JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")).scripts));
 
 /** GitHub's id for a heading: lower case, punctuation dropped, spaces to hyphens, -1 for repeats. */

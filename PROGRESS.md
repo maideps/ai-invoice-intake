@@ -207,3 +207,21 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Files or artifacts updated: repositories/ (backend, frontend, README), contracts/ (openapi.json, README), tools/ (py, web, e2e, screenshots), docker-compose.yml, .github/workflows/ci.yml, .harness/manifest.json, .harness/arch-rules.json, feature_list.json, README.md, docs/ARCHITECTURE.md, docs/quality-document.md, docs/sprints/feat-013.md, samples/README.md, DECISIONS.md, PROGRESS.md, session-handoff.md.
 - Known risk or unresolved issue: any other checkout must run `npm run setup:backend` again after pulling (the old `.venv` points at `backend/`).
 - Next best step: commit and push feat-013 when the author agrees, and confirm CI.
+
+### Session 010 — 2026-10-14
+
+- Goal: a well-explained installation guide (the author's request), after feat-013's CI run passed.
+- Completed:
+  - `docs/INSTALL.md` has two parts:
+    - **Run the app with Docker:** install Git and Docker, start Docker, download, start, open, stop, restart and clean up, settings in a root `.env` (ports, OpenAI key), and troubleshooting. The troubleshooting covers the "can't connect to localhost:8080" case, which happened to the author when the app had not been started.
+    - **Development setup:** Node and Python, `setup:*`, PostgreSQL and Redis containers, migrations, the three dev servers, `npm run seed`, the checks, and development troubleshooting.
+  - Linked from the README (Run, Development, Documentation); declared in `productRoots`; covered by `tools/check-docs.mjs`.
+  - New `npm run seed` (uploads the samples into a development API; does nothing when invoices exist).
+- Verification run:
+  - The development path end to end: the guide's `docker run` commands, `db:migrate`, the API, and `npm run seed` twice (12 uploaded, then skipped). The test containers were removed afterwards.
+  - `.env` port overrides, with `docker compose config` showing 8081 and 9001.
+  - Checking the uninstall command found that `--rmi local` would keep the tagged images; the guide now uses `--rmi all`.
+  - `npm run lint` (docs check over five documents), `npm run check-arch`.
+  - feat-013's CI run 38500026949 passed both jobs.
+- Commits: none yet; waiting for the author.
+- Next best step: commit and push the guide when the author agrees.

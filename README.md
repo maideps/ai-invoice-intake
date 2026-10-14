@@ -10,7 +10,7 @@
 
 ## Run it in five minutes
 
-All you need is Docker (Docker Desktop, or Docker Engine with Compose v2.17 or newer).
+All you need is Git and Docker (Docker Desktop, or Docker Engine with Compose v2.17 or newer), with Docker running. New to these, or something not working? The [step-by-step install guide](docs/INSTALL.md) explains each step, everyday commands, settings and troubleshooting.
 
 ```bash
 git clone https://github.com/maideps/ai-invoice-intake.git
@@ -119,7 +119,7 @@ Each decision is recorded with its context, the alternatives and the consequence
 
 ## Development
 
-To work on the code, run the pieces locally. You need Node.js 20.19 or newer, Python 3.10 or newer (developed on 3.14) and Docker (the database, Redis, and the tests' throwaway containers).
+To work on the code, run the pieces locally ([step by step](docs/INSTALL.md#part-2-set-up-for-development)). You need Node.js 20.19 or newer, Python 3.10 or newer (developed on 3.14) and Docker (the database, Redis, and the tests' throwaway containers).
 
 ```bash
 npm run setup:backend   # creates repositories/backend/.venv and installs the backend with dev tools
@@ -228,6 +228,7 @@ Every make target is mirrored 1:1 by an npm script:
 
 ## Documentation
 
+- [Install guide](docs/INSTALL.md): running the app, settings, troubleshooting, development setup
 - [Product overview](docs/PRODUCT.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Design decisions](DECISIONS.md)

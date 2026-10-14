@@ -43,7 +43,7 @@ Out of scope: separate git repositories or submodules (the author chose folders 
 - [x] Layer 3 (system): `npm run check` and `npm run verify-feature -- feat-013`, plus:
   - `npm run compose:smoke`
   - no tracked file outside history documents mentions the old `backend/` or `frontend/` root paths
-- [ ] After the push (when the author agrees to commit): CI green
+- [x] After the push (when the author agrees to commit): CI green (run 38500026949)
 
 ## What Success Looks Like
 
