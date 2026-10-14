@@ -37,6 +37,7 @@ const backendEnv = {
   INVOICE_INTAKE_EXPORT_WEBHOOK_URL: `http://127.0.0.1:${PORTS.webhook}/invoices`,
   INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET: WEBHOOK_SECRET,
   INVOICE_INTAKE_EXPORT_RETRY_BASE_SECONDS: "1",
+  INVOICE_INTAKE_DEMO_ACCOUNTS: "true", // the spec signs in from the sign-in page's list
 };
 
 /**
@@ -178,6 +179,9 @@ async function main() {
   log("applying migrations");
   if (run("node", ["tools/py.mjs", "-m", "alembic", "upgrade", "head"], { cwd: root, env: backendEnv, stdio: "ignore" }) !== 0) {
     throw new Error("migrations failed");
+  }
+  if (run("node", ["tools/py.mjs", "-m", "invoice_intake.accounts", "demo"], { cwd: root, env: backendEnv, stdio: "ignore" }) !== 0) {
+    throw new Error("creating the demo accounts failed");
   }
 
   await new Promise((resolve, reject) => {

@@ -19,7 +19,7 @@ from invoice_intake.infrastructure.queue import RedisExtractionQueue
 from invoice_intake.main import create_app
 from invoice_intake.worker import STALE_UPLOAD_GRACE, Worker, backoff_seconds, build_worker
 
-from .app_helpers import SAMPLES, database_url
+from .app_helpers import SAMPLES, database_url, sign_in
 from .fakes import ScriptedProvider
 from .helpers import IsolatedSettings
 from .webhook_server import Webhook
@@ -69,6 +69,7 @@ def run_worker(
 @pytest.fixture
 def client(engine: Engine, redis_url: str) -> Iterator[TestClient]:
     with TestClient(create_app(_settings(engine, redis_url))) as client:  # the real Redis queue
+        sign_in(client, engine)
         yield client
 
 
@@ -146,7 +147,7 @@ def test_a_retry_requested_through_the_api_runs_again(
     )
     _wait_for(client, created["id"], "failed")
 
-    client.post(f"/invoices/{created['id']}/extract", headers={"X-User": "alice"})
+    client.post(f"/invoices/{created['id']}/extract")
 
     _wait_for(client, created["id"], "needs_review")
 
@@ -157,6 +158,7 @@ def test_the_sweep_queues_uploads_whose_job_was_lost(
     # Upload while Redis is unreachable: the upload still succeeds, nothing is queued.
     offline = _settings(engine, "redis://127.0.0.1:1/0")
     with TestClient(create_app(offline)) as offline_client:
+        sign_in(offline_client, engine)
         created = _upload(offline_client)
     assert created["status"] == "uploaded"
 
@@ -168,6 +170,7 @@ def test_the_sweep_queues_uploads_whose_job_was_lost(
 
     run_worker(FakeExtractionProvider(SAMPLES), stale_upload_grace=timedelta(0))  # sweeps on start
     with TestClient(create_app(_settings(engine, redis_url))) as client:
+        sign_in(client, engine)
         _wait_for(client, created["id"], "needs_review")
 
 

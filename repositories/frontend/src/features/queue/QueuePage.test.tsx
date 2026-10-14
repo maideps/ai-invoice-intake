@@ -116,20 +116,6 @@ describe("review queue", () => {
 });
 
 describe("app shell", () => {
-  it("sends the chosen name as X-User with uploads", async () => {
-    const { user } = renderApp();
-    await user.click(await screen.findByRole("button", { name: "Acting as anonymous" }));
-    await user.type(screen.getByLabelText("Acting as"), "alice@example.com");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-
-    await user.upload(screen.getByLabelText("Upload invoices"), pdfFile("signed.pdf"));
-    await screen.findByText("signed.pdf uploaded");
-
-    const upload = db.requests.find((r) => r.method === "POST");
-    expect(upload?.headers.get("X-User")).toBe("alice@example.com");
-    expect(screen.getByRole("button", { name: "Acting as alice@example.com" })).toBeInTheDocument();
-  });
-
   it("cycles the theme between system, light and dark", async () => {
     const { user } = renderApp();
     const toggle = await screen.findByRole("button", { name: "Theme: follows your system" });

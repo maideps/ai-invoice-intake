@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
-import type { Invoice } from "@/api/client";
+import type { Account, DemoAccount, Invoice, Permission, Role } from "@/api/client";
 import { STATUSES, type InvoiceStatus } from "@/lib/status";
 
 /** An in-memory stand-in for the API, so component tests run the real fetch and query code. */
@@ -10,7 +10,64 @@ export const db: {
   requests: Request[];
   exportConfigured: boolean;
   exportRequests: string[];
-} = { invoices: [], requests: [], exportConfigured: true, exportRequests: [] };
+  /** Who is signed in (the session); null when signed out. */
+  account: Account | null;
+  accounts: Account[];
+  passwords: Record<string, string>;
+  demoAccounts: DemoAccount[];
+} = {
+  invoices: [],
+  requests: [],
+  exportConfigured: true,
+  exportRequests: [],
+  account: null,
+  accounts: [],
+  passwords: {},
+  demoAccounts: [],
+};
+
+// The same role rules as the API (D-019).
+const PERMISSIONS: Record<Role, Permission[]> = {
+  viewer: ["read"],
+  reviewer: ["read", "upload", "review"],
+  admin: ["read", "upload", "review", "manage_accounts"],
+};
+
+export const PASSWORD = "correct horse battery";
+
+/** Add an account (password: PASSWORD) and return it. */
+export function addAccount(role: Role, username = `${role}-1`, display_name = `${role[0]!.toUpperCase()}${role.slice(1)} One`): Account {
+  const account: Account = {
+    id: `00000000-0000-4000-9000-${String(db.accounts.length + 1).padStart(12, "0")}`,
+    username,
+    display_name,
+    role,
+    active: true,
+    created_at: new Date().toISOString(),
+    permissions: PERMISSIONS[role],
+  };
+  db.accounts.push(account);
+  db.passwords[username] = PASSWORD;
+  return account;
+}
+
+/** Sign in (in the fake API) as a new account with this role. */
+export function signInAs(role: Role, username?: string, display_name?: string): Account {
+  db.account = addAccount(role, username, display_name);
+  return db.account;
+}
+
+/** 401 when signed out, 403 when the role does not allow it, like the real API. */
+function guard(permission: Permission): Response | null {
+  const account = db.account && db.accounts.find((a) => a.id === db.account!.id && a.active);
+  if (!account) return HttpResponse.json({ detail: "sign in first" }, { status: 401 });
+  if (!account.permissions.includes(permission)) {
+    return HttpResponse.json({ detail: `a ${account.role} can't do that` }, { status: 403 });
+  }
+  return null;
+}
+
+const actorName = () => db.account?.username ?? "nobody";
 
 let sequence = 0;
 
@@ -45,7 +102,13 @@ export function resetDb(): void {
   db.requests = [];
   db.exportConfigured = true;
   db.exportRequests = [];
+  db.accounts = [];
+  db.passwords = {};
+  db.demoAccounts = [];
+  db.account = null;
   sequence = 0;
+  // Most tests are about reviewing: start signed in as a reviewer.
+  signInAs("reviewer", "maide", "Maide P");
 }
 
 const summary = (invoice: Invoice) => ({
@@ -60,6 +123,8 @@ const summary = (invoice: Invoice) => ({
 
 export const handlers = [
   http.get("*/api/invoices/stats", () => {
+    const denied = guard("read");
+    if (denied) return denied;
     const by_status = Object.fromEntries(
       STATUSES.map((status) => [status, db.invoices.filter((i) => i.status === status).length]),
     );
@@ -67,6 +132,8 @@ export const handlers = [
   }),
 
   http.get("*/api/invoices", ({ request }) => {
+    const denied = guard("read");
+    if (denied) return denied;
     db.requests.push(request.clone());
     const url = new URL(request.url);
     const status = url.searchParams.get("status");
@@ -84,6 +151,8 @@ export const handlers = [
   }),
 
   http.get("*/api/invoices/:id", ({ params }) => {
+    const denied = guard("read");
+    if (denied) return denied;
     const invoice = db.invoices.find((i) => i.id === params.id);
     return invoice
       ? HttpResponse.json(invoice)
@@ -91,6 +160,8 @@ export const handlers = [
   }),
 
   http.post("*/api/invoices", async ({ request }) => {
+    const denied = guard("upload");
+    if (denied) return denied;
     db.requests.push(request.clone());
     // Read the multipart body as text: enough to find the file name and the PDF signature.
     const body = await request.text();
@@ -155,7 +226,7 @@ function addEvent(invoice: Invoice, event: Partial<Invoice["events"][number]>) {
       sequence: invoice.version,
       occurred_at: new Date().toISOString(),
       actor_kind: "user",
-      actor_name: "anonymous",
+      actor_name: actorName(),
       action: "status_changed",
       from_status: null,
       to_status: null,
@@ -168,6 +239,8 @@ function addEvent(invoice: Invoice, event: Partial<Invoice["events"][number]>) {
 
 handlers.push(
   http.patch("*/api/invoices/:id/fields", async ({ request, params }) => {
+    const denied = guard("review");
+    if (denied) return denied;
     const body = (await request.json()) as { version: number; fields: Partial<Fields> };
     const found = reviewable(String(params.id), body.version);
     if (found instanceof Response) return found;
@@ -186,24 +259,28 @@ handlers.push(
     found.fields = { ...found.fields, ...body.fields };
     addEvent(found, {
       action: "fields_edited",
-      actor_name: request.headers.get("X-User") ?? "anonymous",
+      actor_name: actorName(),
       details: { changes },
     });
     return HttpResponse.json(found);
   }),
 
   http.post("*/api/invoices/:id/approve", async ({ request, params }) => {
+    const denied = guard("review");
+    if (denied) return denied;
     const body = (await request.json()) as { version: number };
     const found = reviewable(String(params.id), body.version);
     if (found instanceof Response) return found;
     const missing = REQUIRED.filter((name) => !found.fields[name]);
     if (missing.length) return problem("cannot approve until these fields are filled", missing);
-    addEvent(found, { from_status: "needs_review", to_status: "approved", actor_name: request.headers.get("X-User") ?? "anonymous" });
+    addEvent(found, { from_status: "needs_review", to_status: "approved" });
     found.status = "approved";
     return HttpResponse.json(found);
   }),
 
   http.post("*/api/invoices/:id/reject", async ({ request, params }) => {
+    const denied = guard("review");
+    if (denied) return denied;
     const body = (await request.json()) as { version: number; reason: string };
     const found = reviewable(String(params.id), body.version);
     if (found instanceof Response) return found;
@@ -223,6 +300,8 @@ handlers.push(
   ),
 
   http.post("*/api/invoices/:id/export", ({ params }) => {
+    const denied = guard("review");
+    if (denied) return denied;
     const invoice = db.invoices.find((i) => i.id === params.id);
     if (!invoice) return HttpResponse.json({ detail: "not found" }, { status: 404 });
     if (invoice.status !== "approved") {
@@ -233,6 +312,8 @@ handlers.push(
   }),
 
   http.post("*/api/invoices/:id/extract", ({ params }) => {
+    const denied = guard("review");
+    if (denied) return denied;
     const invoice = db.invoices.find((i) => i.id === params.id);
     if (!invoice) return HttpResponse.json({ detail: "not found" }, { status: 404 });
     if (invoice.status === "failed") {
@@ -240,6 +321,74 @@ handlers.push(
       invoice.status = "extracting";
     }
     return HttpResponse.json(invoice, { status: 202 });
+  }),
+);
+
+// Sign-in and accounts (D-019)
+
+handlers.push(
+  http.get("*/api/auth/me", () =>
+    db.account ? HttpResponse.json(db.account) : HttpResponse.json({ detail: "sign in first" }, { status: 401 }),
+  ),
+
+  http.post("*/api/auth/sign-in", async ({ request }) => {
+    const body = (await request.json()) as { username: string; password: string };
+    const account = db.accounts.find((a) => a.username === body.username.trim().toLowerCase());
+    if (!account?.active || db.passwords[account.username] !== body.password) {
+      return HttpResponse.json({ detail: "wrong username or password" }, { status: 401 });
+    }
+    db.account = account;
+    return HttpResponse.json(account);
+  }),
+
+  http.post("*/api/auth/sign-out", () => {
+    db.account = null;
+    return new HttpResponse(null, { status: 204 });
+  }),
+
+  http.get("*/api/auth/demo-accounts", () => HttpResponse.json(db.demoAccounts)),
+
+  http.get("*/api/accounts", () => guard("manage_accounts") ?? HttpResponse.json(db.accounts)),
+
+  http.post("*/api/accounts", async ({ request }) => {
+    const denied = guard("manage_accounts");
+    if (denied) return denied;
+    const body = (await request.json()) as { username: string; display_name: string; role: Role; password: string };
+    const username = body.username.trim().toLowerCase();
+    if (db.accounts.some((a) => a.username === username)) {
+      return HttpResponse.json({ detail: `the username '${username}' is taken` }, { status: 409 });
+    }
+    if (body.password.length < 10) return problem("invalid account details", ["a password has 10 to 256 characters"]);
+    const account = addAccount(body.role, username, body.display_name);
+    db.passwords[username] = body.password;
+    return HttpResponse.json(account, { status: 201 });
+  }),
+
+  http.patch("*/api/accounts/:id", async ({ request, params }) => {
+    const denied = guard("manage_accounts");
+    if (denied) return denied;
+    const account = db.accounts.find((a) => a.id === params.id);
+    if (!account) return HttpResponse.json({ detail: "not found" }, { status: 404 });
+    const change = (await request.json()) as { role?: Role; active?: boolean; password?: string; display_name?: string };
+    const next = { ...account, ...change };
+    const admins = db.accounts.filter((a) => a.active && a.role === "admin").length;
+    if (account.active && account.role === "admin" && !(next.active && next.role === "admin") && admins <= 1) {
+      return HttpResponse.json(
+        { detail: "keep at least one active admin, or no one can manage accounts" },
+        { status: 409 },
+      );
+    }
+    if (change.password !== undefined) db.passwords[account.username] = change.password;
+    const updated: Account = {
+      ...account,
+      display_name: next.display_name,
+      role: next.role,
+      active: next.active,
+      permissions: next.active ? PERMISSIONS[next.role] : [],
+    };
+    db.accounts = db.accounts.map((a) => (a.id === account.id ? updated : a));
+    if (db.account?.id === account.id) db.account = updated.active ? updated : null;
+    return HttpResponse.json(updated);
   }),
 );
 

@@ -25,6 +25,11 @@ await withStack(stack, async () => {
   const health = await stack.start();
   check(health.export_configured === true, "export should be configured in the compose stack");
 
+  stack.log("checking sign-in: demo accounts listed, nothing readable without a session");
+  const demo = await json(`${stack.web}/api/auth/demo-accounts`);
+  check(demo.map((a) => a.role).sort().join() === "admin,reviewer,viewer", "one demo account per role");
+  check((await fetch(`${stack.web}/api/invoices`)).status === 401, "signed out, the API should answer 401");
+
   stack.log("checking the dashboard is served, including client-side routes");
   for (const route of ["/", "/invoices/00000000-0000-4000-8000-000000000000"]) {
     const page = await fetch(`${stack.web}${route}`);
@@ -51,11 +56,11 @@ await withStack(stack, async () => {
   stack.log("uploading a sample through nginx");
   const form = new FormData();
   form.append("file", new Blob([readFileSync(SAMPLE)], { type: "application/pdf" }), "invoice-007.pdf");
-  const uploaded = await stack.api("/invoices", { method: "POST", body: form, headers: { "X-User": "smoke" } });
+  const uploaded = await stack.api("/invoices", { method: "POST", body: form });
   const ready = await stack.until(uploaded.id, "the upload in needs_review", (i) => i.status === "needs_review");
 
   stack.log("approving it and waiting for the export");
-  await stack.post(`/invoices/${uploaded.id}/approve`, { version: ready.version }, "smoke");
+  await stack.post(`/invoices/${uploaded.id}/approve`, { version: ready.version });
   const exported = await stack.until(uploaded.id, "the invoice exported", (i) => i.status === "exported");
   check(exported.export?.state === "exported", "the export state should be exported");
 
@@ -63,7 +68,7 @@ await withStack(stack, async () => {
   const mine = deliveries.filter((delivery) => delivery.idempotency_key === uploaded.id);
   check(mine.length === 1, `expected one delivery for the invoice, got ${mine.length}`);
   check(mine[0].signed === true, "the delivery should be signed (the receiver checked the signature)");
-  check(mine[0].payload.approved_by === "smoke", "the payload should name the approver");
+  check(mine[0].payload.approved_by === "sam.rivera", "the payload should name the signed-in approver");
 
   stack.log("all checks passed");
   return 0;

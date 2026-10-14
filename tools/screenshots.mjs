@@ -4,18 +4,18 @@
 //   node tools/screenshots.mjs        (npm run screenshots; needs Docker and npm run setup:frontend)
 //
 // It starts its own compose project (ports 8280 and 9280), waits for the seeded samples,
-// gives the queue a realistic mix through the API (corrected and approved invoices, which the
-// worker exports, and one rejection), then drives Chromium with Playwright at 1440 x 900.
+// signs in as the demo reviewer and gives the queue a realistic mix through the API (corrected
+// and approved invoices, which the worker exports, and one rejection), then drives Chromium with
+// Playwright at 1440 x 900.
 // Everything is removed afterwards. Same data, same screens: rerun it after a UI change.
 
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
-import { ComposeStack, root, withStack } from "./lib/compose-stack.mjs";
+import { ComposeStack, DEMO_ADMIN, DEMO_REVIEWER, root, withStack } from "./lib/compose-stack.mjs";
 
 const OUT = path.join(root, "docs", "images");
-const REVIEWER = "Sam Rivera";
 const VIEWPORT = { width: 1440, height: 900 };
 
 // Playwright is a frontend dev dependency; load it from there.
@@ -38,18 +38,16 @@ async function prepareData() {
   const edited = await stack.post(
     `/invoices/${corrected.id}/fields`,
     { version: corrected.version, fields: { invoice_number: `${corrected.fields.invoice_number}-A` } },
-    REVIEWER,
   );
-  await stack.post(`/invoices/${edited.id}/approve`, { version: edited.version }, REVIEWER);
+  await stack.post(`/invoices/${edited.id}/approve`, { version: edited.version });
   for (const name of ["invoice-001.pdf", "invoice-003.pdf"]) {
     const invoice = await detail(name);
-    await stack.post(`/invoices/${invoice.id}/approve`, { version: invoice.version }, REVIEWER);
+    await stack.post(`/invoices/${invoice.id}/approve`, { version: invoice.version });
   }
   const duplicate = await detail("invoice-004.pdf");
   await stack.post(
     `/invoices/${duplicate.id}/reject`,
     { version: duplicate.version, reason: "Duplicate of an invoice paid last month" },
-    REVIEWER,
   );
   for (const name of ["invoice-001.pdf", "invoice-002.pdf", "invoice-003.pdf"]) {
     await stack.until(byName[name], `${name} exported`, (invoice) => invoice.status === "exported");
@@ -57,12 +55,14 @@ async function prepareData() {
   return byName;
 }
 
-async function shoot(browser, colorScheme, steps) {
+async function shoot(browser, colorScheme, steps, { as = DEMO_REVIEWER } = {}) {
   // A fixed locale, so totals read the same whoever regenerates the images.
   const context = await browser.newContext({ viewport: VIEWPORT, colorScheme, locale: "en-US", reducedMotion: "reduce" });
-  await context.addInitScript((name) => {
-    window.localStorage.setItem("invoice-intake:acting-as", name);
-  }, REVIEWER);
+  if (as) {
+    // context.request shares the browser's cookies: the pages open signed in.
+    const response = await context.request.post(`${stack.web}/api/auth/sign-in`, { data: as });
+    if (!response.ok()) throw new Error(`could not sign in (${response.status()})`);
+  }
   const page = await context.newPage();
   try {
     await steps(page);
@@ -108,6 +108,28 @@ await withStack(stack, async () => {
       await page.waitForTimeout(300);
       await page.screenshot({ path: path.join(OUT, "exported.png") });
     });
+    await shoot(
+      browser,
+      "light",
+      async (page) => {
+        stack.log("sign-in.png");
+        await page.goto(stack.web);
+        await page.getByRole("region", { name: "Demo accounts" }).waitFor();
+        await page.screenshot({ path: path.join(OUT, "sign-in.png") });
+      },
+      { as: null },
+    );
+    await shoot(
+      browser,
+      "light",
+      async (page) => {
+        stack.log("users.png");
+        await page.goto(`${stack.web}/users`);
+        await page.getByRole("region", { name: "Accounts" }).getByText("sam.rivera").waitFor();
+        await page.screenshot({ path: path.join(OUT, "users.png") });
+      },
+      { as: DEMO_ADMIN },
+    );
     await shoot(browser, "dark", async (page) => {
       stack.log("review-dark.png");
       await openReview(page, ids["invoice-007.pdf"], { highlightTotal: true });

@@ -17,7 +17,14 @@ from .domain_helpers import ACTORS, at, invoice_in
 
 pytestmark = pytest.mark.postgres
 
-TABLES = {"invoices", "invoice_line_items", "audit_events", "invoice_documents"}
+TABLES = {
+    "invoices",
+    "invoice_line_items",
+    "audit_events",
+    "invoice_documents",
+    "accounts",
+    "sessions",
+}
 
 
 @pytest.fixture

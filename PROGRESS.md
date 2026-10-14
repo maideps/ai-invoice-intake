@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (all thirteen features passing: feat-001 to feat-013)
+- Current active feature (or none): none (all fifteen features passing: feat-001 to feat-015)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -225,3 +225,41 @@ Keep the "Current Verified State" block current at all times; the session log be
   - feat-013's CI run 38500026949 passed both jobs.
 - Commits: none yet; waiting for the author.
 - Next best step: commit and push the guide when the author agrees.
+
+### Session 011 — 2026-10-14
+
+- Goal: the author's "go with 2 and 3": feat-014 (backend dependency locks) and feat-015 (sign-in and roles). For sign-in, the author chose three roles with a Users screen, and demo accounts listed on the sign-in page of the Docker demo.
+- Completed:
+  - **feat-014** (D-018):
+    - `repositories/backend/requirements.lock` (image) and `requirements-dev.lock` (setup, CI): universal uv locks with hashes, installed with `pip --require-hashes`; the project goes in with `--no-deps`.
+    - `npm run lock:backend`; `uv` is a dev dependency.
+    - The Dockerfile, `tools/py.mjs setup` and the CI pip cache use the locks.
+    - `tests/test_dependency_locks.py` covers drift from `pyproject.toml`, exact pins with hashes, and the two locks agreeing.
+  - **feat-015** (D-019):
+    - Domain: `Role`, `Permission`, `Account`, and the account and session repositories.
+    - `AccountService`: stdlib scrypt passwords, session tokens stored as SHA-256, 12-hour expiry, the last-admin rule, demo accounts.
+    - Migration 0006 (`accounts`, `sessions`), with SQL repositories.
+    - API: `/auth/sign-in|sign-out|me|demo-accounts` and `/accounts` for admins. Every invoice route declares `Reader`, `Uploader` or `Reviewer`, and `X-User` is gone.
+    - The `python -m invoice_intake.accounts` command line (`npm run accounts --`).
+    - UI: a sign-in page with the demo accounts, a user menu, read-only viewers, the Users screen, and a return to sign-in on any 401.
+    - The Docker seed, `npm run seed`, the e2e (a reviewer flow and a viewer refused by the API), the compose smoke test and the screenshots all sign in.
+    - New screenshots: `sign-in.png`, `users.png`.
+  - **Fix found while verifying** (D-020): regenerating the screenshots once failed with "audit events must not go back in time". A reviewer's edit came just after the worker's events, and the virtual machine's clock had stepped back. An event up to 5 s behind the previous one is now recorded at the previous event's time; a larger gap is still refused. A domain test covers it.
+  - Other bugs found by tests and fixed:
+    - `SqlAccountRepository.add` added the row before the savepoint, so a taken username broke the whole transaction.
+    - FastAPI 0.143 nests included routers, so the route walk reads the OpenAPI document instead.
+    - The first frontend test in a file started signed out (the mock reset ran only after tests).
+  - Docs: README (run with demo accounts, sign-in and roles, decisions D-018 and D-019), INSTALL (demo accounts table, accounts, settings, troubleshooting), ARCHITECTURE, PRODUCT, `.env.example`, quality document.
+- Verification run:
+  - `npm run verify-feature -- feat-014` and `-- feat-015` (feat-015 with the e2e), `npm run verify-all` (backend 554, frontend 71), `npm run check-arch`
+  - `npm run compose:smoke` (demo accounts listed, 401 signed out, sign-in, upload, approval, signed export)
+  - `npm run screenshots`
+  - For feat-014: a fresh `setup:backend` on Windows (61 packages, exactly the lock) and a no-cache Linux image build (`uvloop` present, `colorama` absent)
+  - The route matrix shown to catch an unprotected route
+- Evidence captured: `.harness/state/feat-014.json`, `.harness/state/feat-015.json` (written by verify-feature).
+- Commits: none yet; waiting for the author.
+- Known risk or unresolved issue:
+  - Sign-in is not rate limited (needed before any public deployment).
+  - The demo passwords are public by design.
+  - A Docker build hung once with no output (Docker Desktop) and passed on retry.
+- Next best step: commit and push when the author agrees, and confirm CI.

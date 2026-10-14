@@ -14,6 +14,7 @@ import {
   useRequestExtraction,
   useReviewQueue,
 } from "@/api/queries";
+import { useCan } from "@/app/session";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/format";
@@ -98,7 +99,8 @@ function Review({ invoice, onReload }: { invoice: Invoice; onReload: () => Promi
   const queue = useReviewQueue();
   const busy =
     edit.isPending || approve.isPending || reject.isPending || retry.isPending || retryExport.isPending;
-  const editable = invoice.status === "needs_review";
+  const canReview = useCan("review");
+  const editable = canReview && invoice.status === "needs_review";
 
   const target = focusTarget(draft, focusKey);
   const highlight = useMemo(
@@ -135,7 +137,7 @@ function Review({ invoice, onReload }: { invoice: Invoice; onReload: () => Promi
   }, [adopt, draft, edit, failed, invoice]);
 
   const doApprove = useCallback(() => {
-    if (invoice.status !== "needs_review") return;
+    if (!canReview || invoice.status !== "needs_review") return;
     if (dirty) {
       toast.warning("Save or reset your changes first");
       return;
@@ -144,7 +146,7 @@ function Review({ invoice, onReload }: { invoice: Invoice; onReload: () => Promi
       onSuccess: () => toast.success(`${invoice.filename} approved`),
       onError: (error) => failed(error, "approve"),
     });
-  }, [approve, dirty, failed, invoice]);
+  }, [approve, canReview, dirty, failed, invoice]);
 
   const doReject = useCallback(
     (reason: string) =>
@@ -279,6 +281,7 @@ function Review({ invoice, onReload }: { invoice: Invoice; onReload: () => Promi
               })
             }
             exportConfigured={health.data?.export_configured ?? null}
+            canReview={canReview}
             onRetryExport={() =>
               retryExport.mutate(undefined, {
                 onSuccess: () => toast.success("Queued for another delivery attempt"),

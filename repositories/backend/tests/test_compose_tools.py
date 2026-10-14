@@ -8,13 +8,13 @@ import httpx2 as httpx
 import pytest
 from demo_receiver import Receiver, make_server
 from fastapi.testclient import TestClient
-from seed_samples import SEED_USER, seed, wait_for_api
+from seed_samples import seed, sign_in, wait_for_api
 from sqlalchemy import Engine
 
 from invoice_intake.infrastructure.export_webhook import HttpWebhookSender, signature
 from invoice_intake.services.export import ExportDeliveryError
 
-from .app_helpers import SAMPLES, make_app
+from .app_helpers import SAMPLES, TEST_PASSWORD, add_account, make_app
 
 PAYLOAD: dict[str, Any] = {
     "payload_version": 1,
@@ -106,8 +106,10 @@ def test_waiting_for_the_api_gives_up_with_a_clear_message() -> None:
 
 
 @pytest.mark.postgres
-def test_seeding_uploads_every_sample_once(engine: Engine) -> None:
+def test_seeding_signs_in_and_uploads_every_sample_once(engine: Engine) -> None:
+    add_account(engine, "seeder")
     with TestClient(make_app(engine)) as client:
+        sign_in(client, "seeder", TEST_PASSWORD)
         first = seed(client, SAMPLES)
         second = seed(client, SAMPLES)
         listed = client.get("/invoices", params={"limit": 50}).json()
@@ -117,4 +119,11 @@ def test_seeding_uploads_every_sample_once(engine: Engine) -> None:
     assert len(first) == 12
     assert second == []  # an instance with invoices is left alone
     assert listed["total"] == 12
-    assert detail["events"][0]["actor_name"] == SEED_USER
+    assert detail["events"][0]["actor_name"] == "seeder"  # recorded as the signed-in account
+
+
+@pytest.mark.postgres
+def test_seeding_with_a_wrong_password_says_so(engine: Engine) -> None:
+    add_account(engine, "seeder")
+    with TestClient(make_app(engine)) as client, pytest.raises(PermissionError, match="seeder"):
+        sign_in(client, "seeder", "not the password")

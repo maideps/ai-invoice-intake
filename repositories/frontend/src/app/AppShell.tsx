@@ -3,10 +3,18 @@ import { Link, NavLink, Outlet } from "react-router";
 
 import { cn } from "@/lib/utils";
 
-import { ActingAsPicker } from "./ActingAsPicker";
+import { useCan } from "./session";
 import { ThemeToggle } from "./ThemeToggle";
+import { UserMenu } from "./UserMenu";
+
+const navLink = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    "rounded-md px-2 py-1 transition-colors",
+    isActive ? "text-foreground" : "text-muted hover:text-foreground",
+  );
 
 export function AppShell() {
+  const isAdmin = useCan("manage_accounts");
   return (
     <div className="min-h-dvh">
       <a
@@ -23,23 +31,19 @@ export function AppShell() {
             </span>
             Invoice intake
           </Link>
-          <nav aria-label="Main" className="hidden text-sm sm:block">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                cn(
-                  "rounded-md px-2 py-1 transition-colors",
-                  isActive ? "text-foreground" : "text-muted hover:text-foreground",
-                )
-              }
-            >
+          <nav aria-label="Main" className="flex gap-1 text-sm">
+            <NavLink to="/" end className={(state) => cn(navLink(state), "hidden sm:inline")}>
               Review queue
             </NavLink>
+            {isAdmin && (
+              <NavLink to="/users" className={navLink}>
+                Users
+              </NavLink>
+            )}
           </nav>
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
-            <ActingAsPicker />
+            <UserMenu />
           </div>
         </div>
       </header>

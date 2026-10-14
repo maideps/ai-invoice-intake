@@ -68,7 +68,8 @@
     "db:migrate": "node tools/py.mjs -m alembic upgrade head",
     "samples": "node tools/py.mjs tools/generate_samples.py",
     "lock:backend": "node tools/py.mjs -m uv pip compile pyproject.toml --universal --generate-hashes --quiet -o requirements.lock && node tools/py.mjs -m uv pip compile pyproject.toml --extra dev --universal --generate-hashes --quiet -o requirements-dev.lock",
-    "seed": "node tools/py.mjs tools/seed_samples.py --samples ../../samples/invoices",
+    "accounts": "node tools/py.mjs -m invoice_intake.accounts",
+    "seed": "node tools/py.mjs -m invoice_intake.accounts demo && node tools/py.mjs tools/seed_samples.py --samples ../../samples/invoices",
     "api:types": "node tools/py.mjs tools/export_openapi.py && node tools/web.mjs api:types",
     "compose:smoke": "node tools/compose-smoke.mjs",
     "screenshots": "node tools/screenshots.mjs"

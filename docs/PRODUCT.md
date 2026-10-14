@@ -21,7 +21,7 @@ AI Invoice Intake turns incoming invoices into reviewed, structured records. An 
 
 - No real accounting, payment or tax logic.
 - No real customer data: the project uses synthetic invoices only.
-- No multi-tenant billing, SSO or production-grade access control in the first version.
+- No multi-tenant billing, single sign-on, self-service sign-up or password reset by email. Access control is local accounts with three roles (D-019).
 
 ## Product Constraints
 

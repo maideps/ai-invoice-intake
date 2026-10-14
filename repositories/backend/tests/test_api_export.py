@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
-from .app_helpers import SAMPLES, extract_now, make_app
+from .app_helpers import SAMPLES, extract_now, make_app, sign_in
 from .fakes import RecordingQueue
 
 pytestmark = pytest.mark.postgres
@@ -22,6 +22,7 @@ def queue() -> RecordingQueue:
 @pytest.fixture
 def client(engine: Engine, queue: RecordingQueue) -> Iterator[TestClient]:
     with TestClient(make_app(engine, queue)) as client:
+        sign_in(client, engine)
         yield client
 
 

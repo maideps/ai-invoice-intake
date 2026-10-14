@@ -7,7 +7,15 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, PlainSerializer
 
-from invoice_intake.domain import AuditEvent, Invoice, InvoicePage, InvoiceStatus
+from invoice_intake.domain import (
+    Account,
+    AuditEvent,
+    Invoice,
+    InvoicePage,
+    InvoiceStatus,
+    Permission,
+    Role,
+)
 
 DecimalString = Annotated[Decimal, PlainSerializer(str, return_type=str, when_used="json")]
 
@@ -190,3 +198,60 @@ class ProblemOut(BaseModel):
 
     message: str
     errors: list[str]
+
+
+# Sign-in and accounts (D-019)
+
+
+class SignInIn(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=256)
+
+
+class AccountOut(BaseModel):
+    """An account as the API shows it; never the password hash."""
+
+    id: UUID
+    username: str
+    display_name: str
+    role: Role
+    active: bool
+    created_at: datetime
+    permissions: list[Permission]
+
+    @classmethod
+    def of(cls, account: Account) -> "AccountOut":
+        return cls(
+            id=account.id,
+            username=account.username,
+            display_name=account.display_name,
+            role=account.role,
+            active=account.active,
+            created_at=account.created_at,
+            permissions=[permission for permission in Permission if account.can(permission)],
+        )
+
+
+class DemoAccountOut(BaseModel):
+    """A demo account, password included: listed only when demo accounts are on."""
+
+    username: str
+    display_name: str
+    role: Role
+    password: str
+
+
+class AccountCreateIn(BaseModel):
+    username: str = Field(max_length=64)
+    display_name: str = Field(max_length=100)
+    role: Role
+    password: str = Field(max_length=256)
+
+
+class AccountUpdateIn(BaseModel):
+    """Only the fields sent change. A new password signs the account out everywhere."""
+
+    display_name: str | None = Field(default=None, max_length=100)
+    role: Role | None = None
+    active: bool | None = None
+    password: str | None = Field(default=None, max_length=256)

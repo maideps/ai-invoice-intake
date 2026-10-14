@@ -29,6 +29,10 @@ export async function eventually(what, probe, timeoutMs = 120_000) {
   throw new Error(`timed out waiting for ${what}${last ? ` (last: ${JSON.stringify(last)})` : ""}`);
 }
 
+// The demo reviewer (D-019), created by the stack's seed service.
+export const DEMO_REVIEWER = { username: "sam.rivera", password: "demo-reviewer" };
+export const DEMO_ADMIN = { username: "jordan.lee", password: "demo-admin" };
+
 export async function json(url, init) {
   const response = await fetch(url, init);
   const body = await response.json();
@@ -42,6 +46,7 @@ export class ComposeStack {
     this.web = `http://localhost:${webPort}`;
     this.accounting = `http://localhost:${accountingPort}`;
     this.log = log;
+    this.cookie = ""; // the session, after signIn()
     this.env = {
       ...process.env,
       INVOICE_INTAKE_WEB_PORT: String(webPort),
@@ -71,9 +76,11 @@ export class ComposeStack {
       const response = await fetch(`${this.web}/api/health`);
       return response.ok ? response.json() : null;
     });
+    this.log("signing in as the demo reviewer");
+    await eventually("the demo accounts", () => this.signIn().then(() => true));
     this.log(`waiting for the ${SAMPLE_COUNT} seeded samples to be extracted`);
     await eventually("the seeded samples in needs_review", async () => {
-      const stats = await json(`${this.web}/api/invoices/stats`);
+      const stats = await this.api("/invoices/stats");
       return stats.by_status.needs_review === SAMPLE_COUNT ? stats : null;
     });
     return health;
@@ -88,8 +95,21 @@ export class ComposeStack {
     this.compose(["logs", "--tail", "40"]);
   }
 
-  api(pathname, init) {
-    return json(`${this.web}/api${pathname}`, init);
+  /** Sign in through nginx; later api() calls carry the session cookie. */
+  async signIn({ username, password } = DEMO_REVIEWER) {
+    const response = await fetch(`${this.web}/api/auth/sign-in`, {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+      headers: { "Content-Type": "application/json" },
+    });
+    check(response.ok, `could not sign in as ${username} (${response.status})`);
+    this.cookie = response.headers.getSetCookie().map((cookie) => cookie.split(";")[0]).join("; ");
+    return response.json();
+  }
+
+  api(pathname, init = {}) {
+    const headers = { ...init.headers, ...(this.cookie ? { Cookie: this.cookie } : {}) };
+    return json(`${this.web}/api${pathname}`, { ...init, headers });
   }
 
   /** Wait until the invoice satisfies `ready`, and return it. */
@@ -100,11 +120,11 @@ export class ComposeStack {
     });
   }
 
-  post(pathname, body, user) {
+  post(pathname, body) {
     return this.api(pathname, {
       method: pathname.endsWith("/fields") ? "PATCH" : "POST",
       body: JSON.stringify(body),
-      headers: { "Content-Type": "application/json", "X-User": user },
+      headers: { "Content-Type": "application/json" },
     });
   }
 }

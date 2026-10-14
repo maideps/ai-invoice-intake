@@ -1,13 +1,15 @@
 import createClient, { type Middleware } from "openapi-fetch";
 
-import { getActingAs } from "@/lib/identity";
-
 import type { components, paths } from "./schema";
 
 export type Invoice = components["schemas"]["InvoiceOut"];
 export type InvoiceSummary = components["schemas"]["InvoiceSummaryOut"];
 export type InvoicePage = components["schemas"]["InvoicePageOut"];
 export type Stats = components["schemas"]["StatsOut"];
+export type Account = components["schemas"]["AccountOut"];
+export type DemoAccount = components["schemas"]["DemoAccountOut"];
+export type Role = Account["role"];
+export type Permission = Account["permissions"][number];
 
 /** Same origin: Vite (dev) or the web server (later) forwards /api to FastAPI. */
 export const API_BASE = "/api";
@@ -48,11 +50,21 @@ export function toApiError(status: number, body: unknown): ApiError {
   return new ApiError(status, status >= 500 ? "The server had a problem" : `Request failed (${status})`);
 }
 
-const actingAs: Middleware = {
-  onRequest({ request }) {
-    const name = getActingAs();
-    if (name) request.headers.set("X-User", name);
-    return request;
+/** Told when the API answers 401 (the session ended or expired), except to sign-in itself. */
+const signedOutListeners = new Set<() => void>();
+
+export function onSignedOut(listener: () => void): () => void {
+  signedOutListeners.add(listener);
+  return () => signedOutListeners.delete(listener);
+}
+
+// The session is an HttpOnly cookie (D-019): the browser sends it, scripts never see it.
+const sessionWatch: Middleware = {
+  onResponse({ request, response }) {
+    if (response.status === 401 && !new URL(request.url).pathname.endsWith("/auth/sign-in")) {
+      signedOutListeners.forEach((listener) => listener());
+    }
+    return response;
   },
 };
 
@@ -62,7 +74,7 @@ export const api = createClient<paths>({
   // Look fetch up on each call rather than once at import, so test mocks installed later apply.
   fetch: (request) => globalThis.fetch(request),
 });
-api.use(actingAs);
+api.use(sessionWatch);
 
 /** Unwrap an openapi-fetch result: the data, or an ApiError. A network failure throws too. */
 export async function unwrap<T>(

@@ -20,7 +20,7 @@ from .webhook_server import webhook  # noqa: F401  (a fixture: a local export we
 
 BACKEND = Path(__file__).resolve().parents[1]
 POSTGRES_IMAGE = "postgres:16-alpine"
-TABLES = "invoices, invoice_line_items, audit_events, invoice_documents"
+TABLES = "invoices, invoice_line_items, audit_events, invoice_documents, accounts, sessions"
 
 
 def alembic_config(url: str) -> Config:

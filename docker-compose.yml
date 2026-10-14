@@ -2,7 +2,8 @@
 #
 #   docker compose up --build        then open http://localhost:8080
 #
-# The first start uploads the 12 synthetic samples and the worker extracts them. Approved
+# Sign in with a demo account from the sign-in page. The first start creates them, uploads the
+# 12 synthetic samples and the worker extracts them. Approved
 # invoices are exported to "accounting", a demo receiver that checks the signature and logs
 # each delivery (docker compose logs -f accounting; listed at http://localhost:9000/deliveries).
 #
@@ -28,6 +29,8 @@ x-backend: &backend
     INVOICE_INTAKE_OPENAI_API_KEY: ${INVOICE_INTAKE_OPENAI_API_KEY:-}
     INVOICE_INTAKE_EXPORT_WEBHOOK_URL: ${INVOICE_INTAKE_EXPORT_WEBHOOK_URL:-http://accounting:9000/invoices}
     INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET: ${INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET:-local-demo-secret}
+    # Sign-in (D-019): the seed creates one demo account per role; list them on the sign-in page.
+    INVOICE_INTAKE_DEMO_ACCOUNTS: ${INVOICE_INTAKE_DEMO_ACCOUNTS:-true}
 
 services:
   postgres:
@@ -93,7 +96,12 @@ services:
 
   seed:
     <<: *backend
-    command: ["python", "tools/seed_samples.py", "--api", "http://api:8000", "--samples", "samples/invoices"]
+    # The demo accounts first (existing accounts are left alone), then the samples, uploaded as the
+    # demo reviewer.
+    command:
+      - sh
+      - -c
+      - python -m invoice_intake.accounts demo && python tools/seed_samples.py --api http://api:8000 --samples samples/invoices
     depends_on:
       api:
         condition: service_healthy

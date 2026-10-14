@@ -91,7 +91,15 @@ The terminal keeps printing what the services do. **Leave this terminal open**: 
 
 Open **http://localhost:8080** in your browser.
 
-You should see the review queue with **12 invoices in "Needs review"**. Then try the main flow:
+You see the **sign-in page**, which in this demo lists three demo accounts, one per role:
+
+| Account | Password | Role: what it can do |
+|---|---|---|
+| Sam Rivera (`sam.rivera`) | `demo-reviewer` | Reviewer: uploads, corrects, approves and rejects |
+| Alex Chen (`alex.chen`) | `demo-viewer` | Viewer: reads everything, changes nothing |
+| Jordan Lee (`jordan.lee`) | `demo-admin` | Admin: a reviewer who also manages accounts |
+
+Press **Sign in** next to Sam Rivera. You see the review queue with **12 invoices in "Needs review"**. Then try the main flow:
 
 1. Open an invoice. The original PDF is on the left and the fields the AI read are on the right.
 2. Click a field, such as **Total**. Its value is highlighted where it is printed in the PDF. Amber fields are the ones the model was unsure about.
@@ -104,7 +112,7 @@ The export went to a demo accounting system that runs alongside the app. To see 
 docker compose logs accounting
 ```
 
-To record who approves, click your name at the top right ("Acting as") and type one. It appears in the audit trail.
+Everything you do is recorded in the audit trail under your username. To try the other roles, open the menu with your name at the top right, **Sign out**, and sign in as Alex Chen (the same screens, read-only) or Jordan Lee (adds the **Users** screen, where you add people and change their roles).
 
 ### Step 6: Stop, restart and clean up
 
@@ -143,6 +151,16 @@ About these settings:
 - **The demo provider** (`fake`, the default) needs no key and no network. It recognises the 12 synthetic samples and returns their correct values. Any other document comes back empty for you to fill in.
 - **With `openai`**, each invoice is sent to OpenAI to be read, at a cost of a fraction of a cent per invoice. The app refuses to start if the key is missing.
 
+### Accounts
+
+The demo accounts exist so anyone can try the app at once; their passwords are public. To give real people access, create accounts of your own: an admin can add them on the **Users** screen, or from the project folder:
+
+```bash
+docker compose exec api python -m invoice_intake.accounts create kim.lee --name "Kim Lee" --role admin
+```
+
+It asks for the password twice (at least 10 characters). The same command also offers `set-password <username>` (for a forgotten password) and `list`. Roles are `viewer`, `reviewer` and `admin`. Deactivating someone on the Users screen signs them out at once.
+
 ### Troubleshooting
 
 **The browser says it can't connect to localhost:8080** (in Firefox, "Unable to connect"; in Chrome, "This site can't be reached"):
@@ -161,6 +179,12 @@ another program already uses port 8080 or 9000. Choose other ports in `.env` (se
 
 - Windows: `netstat -ano | findstr :8080` (the last number is the process ID, which Task Manager shows)
 - macOS or Linux: `lsof -i :8080`
+
+**"Wrong username or password"**:
+usernames are lower case (`sam.rivera`), and passwords are case-sensitive. A forgotten password: `docker compose exec api python -m invoice_intake.accounts set-password <username>`.
+
+**Back on the sign-in page unexpectedly**:
+sessions last 12 hours (`INVOICE_INTAKE_SESSION_TTL_HOURS`), and an admin deactivating your account or setting a new password ends them.
 
 **The build stops with a download error** (from `pip`, `npm` or a registry):
 a network hiccup. Run `docker compose up --build` again. The steps that already finished are cached, so the retry is quick.
@@ -256,7 +280,9 @@ With the API running, in a fourth terminal:
 npm run seed
 ```
 
-It uploads the 12 synthetic invoices. If the database already holds invoices, it does nothing. Open http://localhost:5173 and they appear in the queue.
+It creates the three demo accounts (see Part 1, Step 5) and uploads the 12 synthetic invoices as the demo reviewer. Accounts or invoices that already exist are left alone. Open http://localhost:5173, sign in as `sam.rivera` / `demo-reviewer`, and they appear in the queue.
+
+To list the demo accounts on the sign-in page in development too, put `INVOICE_INTAKE_DEMO_ACCOUNTS=true` in `repositories/backend/.env`. Your own accounts: `npm run accounts -- create <username> --name "Your Name" --role admin`.
 
 ### Step 6: Run the checks
 

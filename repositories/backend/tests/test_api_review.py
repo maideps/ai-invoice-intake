@@ -9,18 +9,17 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
-from .app_helpers import extract_now, make_app
+from .app_helpers import extract_now, make_app, sign_in
 
 pytestmark = pytest.mark.postgres
 
 SAMPLES = Path(__file__).resolve().parents[3] / "samples" / "invoices"
-ALICE = {"X-User": "alice@example.com"}
-BOB = {"X-User": "bob@example.com"}
 
 
 @pytest.fixture
 def client(engine: Engine) -> Iterator[TestClient]:
     with TestClient(make_app(engine)) as client:
+        sign_in(client, engine)
         yield client
 
 
@@ -37,23 +36,23 @@ def in_review(client: TestClient, engine: Engine) -> dict[str, Any]:
 
 
 def test_correct_then_approve_leaves_a_complete_audit_trail(
-    client: TestClient, in_review: dict[str, Any]
+    client: TestClient, engine: Engine, in_review: dict[str, Any]
 ) -> None:
     invoice = in_review
     old_total = invoice["fields"]["total"]
 
+    sign_in(client, engine, "alice")
     edited = client.patch(
         f"/invoices/{invoice['id']}/fields",
         json={"version": invoice["version"], "fields": {"total": "999.99"}},
-        headers=ALICE,
     )
     assert edited.status_code == 200
     assert edited.json()["fields"]["total"] == "999.99"
 
+    sign_in(client, engine, "bob")
     approved = client.post(
         f"/invoices/{invoice['id']}/approve",
         json={"version": edited.json()["version"]},
-        headers=BOB,
     )
     assert approved.status_code == 200
 
@@ -62,21 +61,23 @@ def test_correct_then_approve_leaves_a_complete_audit_trail(
     assert stored["status"] == "approved"
     trail = [(e["action"], e["to_status"], e["actor_name"]) for e in stored["events"]]
     assert trail[-2:] == [
-        ("fields_edited", None, "alice@example.com"),
-        ("status_changed", "approved", "bob@example.com"),
+        ("fields_edited", None, "alice"),
+        ("status_changed", "approved", "bob"),
     ]
     assert stored["events"][-2]["details"] == {
         "changes": {"total": {"from": old_total, "to": "999.99"}}
     }
 
 
-def test_reject_with_a_reason(client: TestClient, in_review: dict[str, Any]) -> None:
+def test_reject_with_a_reason(
+    client: TestClient, engine: Engine, in_review: dict[str, Any]
+) -> None:
     invoice = in_review
+    sign_in(client, engine, "alice")
 
     response = client.post(
         f"/invoices/{invoice['id']}/reject",
         json={"version": invoice["version"], "reason": "Duplicate of INV-4410"},
-        headers=ALICE,
     )
 
     assert response.status_code == 200
@@ -84,7 +85,7 @@ def test_reject_with_a_reason(client: TestClient, in_review: dict[str, Any]) -> 
     assert (last["to_status"], last["reason"], last["actor_name"]) == (
         "rejected",
         "Duplicate of INV-4410",
-        "alice@example.com",
+        "alice",
     )
 
 

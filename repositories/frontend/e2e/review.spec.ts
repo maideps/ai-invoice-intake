@@ -19,12 +19,10 @@ interface Delivery {
 }
 
 test("a reviewer uploads, checks, corrects and approves an invoice, which is exported", async ({ page, request }) => {
+  // Sign in as the demo reviewer; the audit trail records the username.
   await page.goto("/");
-
-  // Who is acting: recorded in the audit trail.
-  await page.getByRole("button", { name: /Acting as/ }).click();
-  await page.getByRole("textbox", { name: "Acting as" }).fill("e2e-reviewer");
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Sign in as Sam Rivera (Reviewer)" }).click();
+  await expect(page.getByRole("button", { name: "Signed in as Sam Rivera (Reviewer)" })).toBeVisible();
 
   // Upload through the drop zone's file picker; the worker extracts it in the background.
   await page.getByLabel("Upload invoices").setInputFiles(SAMPLE);
@@ -59,11 +57,11 @@ test("a reviewer uploads, checks, corrects and approves an invoice, which is exp
   await expect(page.getByText(/Exported to the accounting system/)).toBeVisible({ timeout: 30_000 });
 
   const trail = page.getByRole("region", { name: "Audit trail" });
-  await expect(trail).toContainText("e2e-reviewer uploaded the invoice");
+  await expect(trail).toContainText("sam.rivera uploaded the invoice");
   await expect(trail).toContainText("fake:ground-truth read");
-  await expect(trail).toContainText("e2e-reviewer changed invoice number");
+  await expect(trail).toContainText("sam.rivera changed invoice number");
   await expect(trail).toContainText("F2026/3734-A");
-  await expect(trail).toContainText("e2e-reviewer approved it");
+  await expect(trail).toContainText("sam.rivera approved it");
   await expect(trail).toContainText("export-service delivered it to the accounting system");
 
   // Exactly one delivery, signed, carrying the corrected fields.
@@ -76,10 +74,31 @@ test("a reviewer uploads, checks, corrects and approves an invoice, which is exp
     `sha256=${createHmac("sha256", SECRET).update(delivery.body).digest("hex")}`,
   );
   expect(delivery.headers["idempotency-key"]).toBe(payload.invoice_id);
-  expect(payload.approved_by).toBe("e2e-reviewer");
+  expect(payload.approved_by).toBe("sam.rivera");
   expect(payload.fields.invoice_number).toBe("F2026/3734-A");
 
   // Back in the queue, the invoice now counts as exported.
   await page.getByRole("link", { name: "Review queue" }).first().click();
   await expect(page.getByRole("button", { name: /^Exported\s*1$/ })).toBeVisible();
+});
+
+test("a viewer reads but cannot change anything, and the API agrees", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Sign in as Alex Chen (Viewer)" }).click();
+
+  await expect(page.getByText(/signed in as a viewer/)).toBeVisible();
+  await expect(page.getByLabel("Upload invoices")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Users" })).toHaveCount(0);
+
+  // Not just hidden: the API refuses the viewer's session too (page.request shares its cookie).
+  const upload = await page.request.post("/api/invoices", {
+    multipart: { file: { name: "x.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") } },
+  });
+  expect(upload.status()).toBe(403);
+
+  // Signing out ends the session for the API as well.
+  await page.getByRole("button", { name: /^Signed in as Alex Chen/ }).click();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  expect((await page.request.get("/api/invoices")).status()).toBe(401);
 });

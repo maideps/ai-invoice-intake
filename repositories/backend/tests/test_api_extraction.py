@@ -11,7 +11,7 @@ from sqlalchemy import Engine
 from invoice_intake.domain import FIELD_NAMES, ExtractionProviderError
 from invoice_intake.services.extraction import AttemptResult
 
-from .app_helpers import SAMPLES, extract_now, make_app
+from .app_helpers import SAMPLES, extract_now, make_app, sign_in
 from .fakes import RecordingQueue, ScriptedProvider
 
 pytestmark = pytest.mark.postgres
@@ -25,6 +25,7 @@ def queue() -> RecordingQueue:
 @pytest.fixture
 def client(engine: Engine, queue: RecordingQueue) -> Iterator[TestClient]:
     with TestClient(make_app(engine, queue)) as client:
+        sign_in(client, engine)
         yield client
 
 
@@ -64,7 +65,8 @@ def test_failed_extraction_then_a_retry_requested_by_a_person(
     assert failed["status"] == "failed"
     assert "provider error: OpenAI request failed: timeout" in failed["events"][-1]["reason"]
 
-    response = client.post(f"/invoices/{invoice_id}/extract", headers={"X-User": "alice"})
+    sign_in(client, engine, "alice")
+    response = client.post(f"/invoices/{invoice_id}/extract")
 
     assert response.status_code == 202
     retried = response.json()

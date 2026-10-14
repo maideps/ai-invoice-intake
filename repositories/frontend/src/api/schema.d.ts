@@ -24,6 +24,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign In
+         * @description Start a session: the response sets the session cookie.
+         */
+        post: operations["sign_in_auth_sign_in_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sign-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign Out
+         * @description End the session (if any) and clear the cookie.
+         */
+        post: operations["sign_out_auth_sign_out_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Me
+         * @description Who is signed in, with what their role allows.
+         */
+        get: operations["me_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/demo-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Demo Accounts
+         * @description The demo accounts and their passwords when demo accounts are on (the Docker demo);
+         *     otherwise an empty list.
+         */
+        get: operations["demo_accounts_auth_demo_accounts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Accounts
+         * @description Every account, by username.
+         */
+        get: operations["list_accounts_accounts_get"];
+        put?: never;
+        /**
+         * Create Account
+         * @description Add an account with a starting password; tell the person to keep it private.
+         */
+        post: operations["create_account_accounts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Account
+         * @description Change the role, display name or active state, or set a new password. Deactivating an
+         *     account or setting its password signs it out everywhere.
+         */
+        patch: operations["update_account_accounts__account_id__patch"];
+        trace?: never;
+    };
     "/invoices": {
         parameters: {
             query?: never;
@@ -231,6 +357,54 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccountCreateIn */
+        AccountCreateIn: {
+            /** Username */
+            username: string;
+            /** Display Name */
+            display_name: string;
+            role: components["schemas"]["Role"];
+            /** Password */
+            password: string;
+        };
+        /**
+         * AccountOut
+         * @description An account as the API shows it; never the password hash.
+         */
+        AccountOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Username */
+            username: string;
+            /** Display Name */
+            display_name: string;
+            role: components["schemas"]["Role"];
+            /** Active */
+            active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Permissions */
+            permissions: components["schemas"]["Permission"][];
+        };
+        /**
+         * AccountUpdateIn
+         * @description Only the fields sent change. A new password signs the account out everywhere.
+         */
+        AccountUpdateIn: {
+            /** Display Name */
+            display_name?: string | null;
+            role?: components["schemas"]["Role"] | null;
+            /** Active */
+            active?: boolean | null;
+            /** Password */
+            password?: string | null;
+        };
         /** ApproveIn */
         ApproveIn: {
             /** Version */
@@ -267,6 +441,19 @@ export interface components {
              * @description Invoice as PDF, PNG or JPEG
              */
             file: string;
+        };
+        /**
+         * DemoAccountOut
+         * @description A demo account, password included: listed only when demo accounts are on.
+         */
+        DemoAccountOut: {
+            /** Username */
+            username: string;
+            /** Display Name */
+            display_name: string;
+            role: components["schemas"]["Role"];
+            /** Password */
+            password: string;
         };
         /** EditFieldsIn */
         EditFieldsIn: {
@@ -413,6 +600,11 @@ export interface components {
             amount: string;
         };
         /**
+         * Permission
+         * @enum {string}
+         */
+        Permission: "read" | "upload" | "review" | "manage_accounts";
+        /**
          * ProblemOut
          * @description The `detail` of a 422 from the review endpoints: what failed, and every reason.
          */
@@ -428,6 +620,18 @@ export interface components {
             version: number;
             /** Reason */
             reason: string;
+        };
+        /**
+         * Role
+         * @enum {string}
+         */
+        Role: "viewer" | "reviewer" | "admin";
+        /** SignInIn */
+        SignInIn: {
+            /** Username */
+            username: string;
+            /** Password */
+            password: string;
         };
         /** StatsOut */
         StatsOut: {
@@ -480,6 +684,264 @@ export interface operations {
             };
         };
     };
+    sign_in_auth_sign_in_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignInIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Wrong username or password, or an inactive account */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_out_auth_sign_out_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Not signed in */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    demo_accounts_auth_demo_accounts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoAccountOut"][];
+                };
+            };
+        };
+    };
+    list_accounts_accounts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_account_accounts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Unknown account */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The username is taken, or the change would leave no active admin */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An invalid username, display name or password */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemOut"];
+                };
+            };
+        };
+    };
+    update_account_accounts__account_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountUpdateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Unknown account */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The username is taken, or the change would leave no active admin */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An invalid username, display name or password */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemOut"];
+                };
+            };
+        };
+    };
     list_invoices_invoices_get: {
         parameters: {
             query?: {
@@ -489,7 +951,9 @@ export interface operations {
             };
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -516,11 +980,11 @@ export interface operations {
     upload_invoice_invoices_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-user"?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -553,7 +1017,9 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -566,6 +1032,15 @@ export interface operations {
                     "application/json": components["schemas"]["StatsOut"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     get_invoice_invoices__invoice_id__get: {
@@ -575,7 +1050,9 @@ export interface operations {
             path: {
                 invoice_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -606,7 +1083,9 @@ export interface operations {
             path: {
                 invoice_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -637,7 +1116,9 @@ export interface operations {
             path: {
                 invoice_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -666,13 +1147,13 @@ export interface operations {
     extract_invoice_invoices__invoice_id__extract_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-user"?: string | null;
-            };
+            header?: never;
             path: {
                 invoice_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -717,7 +1198,9 @@ export interface operations {
             path: {
                 invoice_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -758,13 +1241,13 @@ export interface operations {
     edit_fields_invoices__invoice_id__fields_patch: {
         parameters: {
             query?: never;
-            header?: {
-                "x-user"?: string | null;
-            };
+            header?: never;
             path: {
                 invoice_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -809,13 +1292,13 @@ export interface operations {
     approve_invoices__invoice_id__approve_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-user"?: string | null;
-            };
+            header?: never;
             path: {
                 invoice_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -860,13 +1343,13 @@ export interface operations {
     reject_invoices__invoice_id__reject_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-user"?: string | null;
-            };
+            header?: never;
             path: {
                 invoice_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                invoice_intake_session?: string | null;
+            };
         };
         requestBody: {
             content: {

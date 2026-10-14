@@ -27,18 +27,63 @@
         }
       }
     },
-    "/invoices": {
+    "/auth/sign-in": {
       "post": {
         "tags": [
-          "invoices"
+          "auth"
         ],
-        "summary": "Upload Invoice",
-        "description": "Store an uploaded invoice in ``uploaded`` status and record who uploaded it.",
-        "operationId": "upload_invoice_invoices_post",
+        "summary": "Sign In",
+        "description": "Start a session: the response sets the session cookie.",
+        "operationId": "sign_in_auth_sign_in_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong username or password, or an inactive account"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sign-out": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign Out",
+        "description": "End the session (if any) and clear the cookie.",
+        "operationId": "sign_out_auth_sign_out_post",
         "parameters": [
           {
-            "name": "x-user",
-            "in": "header",
+            "name": "invoice_intake_session",
+            "in": "cookie",
             "required": false,
             "schema": {
               "anyOf": [
@@ -49,7 +94,323 @@
                   "type": "null"
                 }
               ],
-              "title": "X-User"
+              "title": "Invoice Intake Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Me",
+        "description": "Who is signed in, with what their role allows.",
+        "operationId": "me_auth_me_get",
+        "parameters": [
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/demo-accounts": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Demo Accounts",
+        "description": "The demo accounts and their passwords when demo accounts are on (the Docker demo);\notherwise an empty list.",
+        "operationId": "demo_accounts_auth_demo_accounts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DemoAccountOut"
+                  },
+                  "type": "array",
+                  "title": "Response Demo Accounts Auth Demo Accounts Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts": {
+      "get": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "List Accounts",
+        "description": "Every account, by username.",
+        "operationId": "list_accounts_accounts_get",
+        "parameters": [
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccountOut"
+                  },
+                  "title": "Response List Accounts Accounts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Create Account",
+        "description": "Add an account with a starting password; tell the person to keep it private.",
+        "operationId": "create_account_accounts_post",
+        "parameters": [
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown account"
+          },
+          "409": {
+            "description": "The username is taken, or the change would leave no active admin"
+          },
+          "422": {
+            "description": "An invalid username, display name or password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/accounts/{account_id}": {
+      "patch": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Update Account",
+        "description": "Change the role, display name or active state, or set a new password. Deactivating an\naccount or setting its password signs it out everywhere.",
+        "operationId": "update_account_accounts__account_id__patch",
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountUpdateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown account"
+          },
+          "409": {
+            "description": "The username is taken, or the change would leave no active admin"
+          },
+          "422": {
+            "description": "An invalid username, display name or password",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/invoices": {
+      "post": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "Upload Invoice",
+        "description": "Store an uploaded invoice in ``uploaded`` status and record who uploaded it.",
+        "operationId": "upload_invoice_invoices_post",
+        "parameters": [
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
             }
           }
         ],
@@ -132,6 +493,22 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
+            }
           }
         ],
         "responses": {
@@ -166,6 +543,24 @@
         "summary": "Invoice Stats",
         "description": "How many invoices are in each status, for the queue header and its filters.",
         "operationId": "invoice_stats_invoices_stats_get",
+        "parameters": [
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -173,6 +568,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StatsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -196,6 +601,22 @@
               "type": "string",
               "format": "uuid",
               "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
             }
           }
         ],
@@ -240,6 +661,22 @@
               "type": "string",
               "format": "uuid",
               "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
             }
           }
         ],
@@ -289,6 +726,22 @@
               "format": "uuid",
               "title": "Invoice Id"
             }
+          },
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
+            }
           }
         ],
         "responses": {
@@ -333,8 +786,8 @@
             }
           },
           {
-            "name": "x-user",
-            "in": "header",
+            "name": "invoice_intake_session",
+            "in": "cookie",
             "required": false,
             "schema": {
               "anyOf": [
@@ -345,7 +798,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-User"
+              "title": "Invoice Intake Session"
             }
           }
         ],
@@ -396,6 +849,22 @@
               "type": "string",
               "format": "uuid",
               "title": "Invoice Id"
+            }
+          },
+          {
+            "name": "invoice_intake_session",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Invoice Intake Session"
             }
           }
         ],
@@ -449,8 +918,8 @@
             }
           },
           {
-            "name": "x-user",
-            "in": "header",
+            "name": "invoice_intake_session",
+            "in": "cookie",
             "required": false,
             "schema": {
               "anyOf": [
@@ -461,7 +930,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-User"
+              "title": "Invoice Intake Session"
             }
           }
         ],
@@ -525,8 +994,8 @@
             }
           },
           {
-            "name": "x-user",
-            "in": "header",
+            "name": "invoice_intake_session",
+            "in": "cookie",
             "required": false,
             "schema": {
               "anyOf": [
@@ -537,7 +1006,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-User"
+              "title": "Invoice Intake Session"
             }
           }
         ],
@@ -601,8 +1070,8 @@
             }
           },
           {
-            "name": "x-user",
-            "in": "header",
+            "name": "invoice_intake_session",
+            "in": "cookie",
             "required": false,
             "schema": {
               "anyOf": [
@@ -613,7 +1082,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-User"
+              "title": "Invoice Intake Session"
             }
           }
         ],
@@ -660,6 +1129,136 @@
   },
   "components": {
     "schemas": {
+      "AccountCreateIn": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Display Name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "display_name",
+          "role",
+          "password"
+        ],
+        "title": "AccountCreateIn"
+      },
+      "AccountOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/Permission"
+            },
+            "type": "array",
+            "title": "Permissions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "role",
+          "active",
+          "created_at",
+          "permissions"
+        ],
+        "title": "AccountOut",
+        "description": "An account as the API shows it; never the password hash."
+      },
+      "AccountUpdateIn": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "title": "AccountUpdateIn",
+        "description": "Only the fields sent change. A new password signs the account out everywhere."
+      },
       "ApproveIn": {
         "properties": {
           "version": {
@@ -769,6 +1368,34 @@
           "file"
         ],
         "title": "Body_upload_invoice_invoices_post"
+      },
+      "DemoAccountOut": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "display_name",
+          "role",
+          "password"
+        ],
+        "title": "DemoAccountOut",
+        "description": "A demo account, password included: listed only when demo accounts are on."
       },
       "EditFieldsIn": {
         "properties": {
@@ -1206,6 +1833,16 @@
         ],
         "title": "LineItemOut"
       },
+      "Permission": {
+        "type": "string",
+        "enum": [
+          "read",
+          "upload",
+          "review",
+          "manage_accounts"
+        ],
+        "title": "Permission"
+      },
       "ProblemOut": {
         "properties": {
           "message": {
@@ -1246,6 +1883,37 @@
           "reason"
         ],
         "title": "RejectIn"
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "viewer",
+          "reviewer",
+          "admin"
+        ],
+        "title": "Role"
+      },
+      "SignInIn": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "SignInIn"
       },
       "StatsOut": {
         "properties": {

@@ -20,12 +20,14 @@ Rate each module on a scale of A (excellent) / B (good) / C (acceptable) / D (ne
 | packaging and CI (Compose, images, smoke test, workflow) | A | n/a | A | A | B |
 | README and documentation tooling (screenshots, docs check) | A | n/a | A | A | n/a |
 | repositories layout (repository gates, API contract) | A | n/a | A | A | n/a |
+| dependency locks (universal, hashed) | A | n/a | A | A | n/a |
+| sign-in and roles (accounts, sessions, route matrix, Users screen) | A | A | A | A | B |
 
 ## Summary
 
-- **Overall Quality Grade:** A- (all thirteen features passing; backend complete through review with background extraction; dashboard has the queue and the review screen; end-to-end tests run the real stack; approved invoices are exported to a signed webhook; one-command Compose stack and CI on every push)
+- **Overall Quality Grade:** A- (all fifteen features passing; backend complete through review with background extraction; dashboard has the queue and the review screen; end-to-end tests run the real stack; approved invoices are exported to a signed webhook; one-command Compose stack and CI on every push)
 - **Blockers:** none
-- **Areas requiring attention:** the OpenAI provider has never been called with a real key; there is no authentication (the acting user is a trusted header); the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
+- **Areas requiring attention:** the OpenAI provider has never been called with a real key; sign-in is not rate limited (needed before a public deployment); the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
 
 ## Notes
 
@@ -43,6 +45,7 @@ Rate each module on a scale of A (excellent) / B (good) / C (acceptable) / D (ne
 - Session 007 (feat-011) added packaging and CI (D-015). It covers the Compose stack (migrate, api, worker, seed, demo accounting receiver, nginx web), the backend and web images, `npm run compose:smoke`, and a GitHub Actions workflow running `npm run check`, `check-arch` and the smoke test. The run has 470 backend tests: the new ones cover the demo receiver against the real webhook sender (valid, wrong and missing signatures) and the seed on PostgreSQL (12 uploads, then none). The non-Docker backend tests also pass on Linux in a `python:3.14-slim` container. The manual check in a browser found that nginx served pdf.js's `.mjs` worker as `application/octet-stream`, so the PDF could not render. That is fixed, and the smoke test now checks every built asset's content type. Performance B: the backend image is about 350 MB; the stack stops in about 3 s.
 - Session 008 (feat-012) rewrote the README product-first, with a hero screenshot, "Run it in five minutes", a walkthrough, Mermaid component and lifecycle diagrams, and a decisions table linking each entry (D-016). New tools: `npm run screenshots` regenerates the four images from the real Compose stack (fixed data steps and locale, light and dark), and `tools/check-docs.mjs` runs in lint (shown to fail on a missing image, a bad anchor and an unknown script). The five-minute start was measured from a fresh clone of the public repository with an empty build cache. The first attempt failed once in the dependency layer and its pip output was lost; the next runs took 205 s and 299 s (with lint running on the same machine).
 - Session 009 (feat-013) moved the backend and the frontend to `repositories/` (D-017). Each now has its own `scripts/verify`, run by `npm run verify-all`, and the OpenAPI document is the contract in `contracts/openapi.json`. Regenerating it from the new paths gave byte-identical files. The backend gate runs 471 tests alone and the frontend gate 61. The compose smoke test found a real bug: settings found the samples by counting folder levels, which broke in the image (`IndexError` under Alembic from `/app/src`). They now search upwards, with a test.
+- Session 011 (feat-014, feat-015) added hashed universal dependency locks (D-018) and sign-in with three roles (D-019). Every route is checked for 401, 403 and access by a test that walks the OpenAPI document, shown to catch an unprotected route. 554 backend and 71 frontend tests, and two e2e tests (a reviewer flow, and a viewer refused by the API itself). Bugs found by the tests: a savepoint opened after the insert, nested routers in FastAPI 0.143, and the audit clock rule refusing a reviewer's edit after a clock step (D-020). Performance B: scrypt costs tens of milliseconds per sign-in by design; each request looks the session up in one indexed query.
 
 ---
 

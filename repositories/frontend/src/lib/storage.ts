@@ -1,5 +1,5 @@
 /**
- * Browser storage for per-viewer conveniences (theme, "acting as" name). Storage can be
+ * Browser storage for per-viewer conveniences (theme). Storage can be
  * missing or throw (private windows, blocked site data), so every access is guarded and the
  * app works without it.
  */

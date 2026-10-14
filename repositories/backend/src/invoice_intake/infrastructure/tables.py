@@ -11,6 +11,7 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -28,7 +29,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from invoice_intake.domain import ActorKind, AuditAction, InvoiceStatus
+from invoice_intake.domain import ActorKind, AuditAction, InvoiceStatus, Role
 
 # The migrations spell these out literally; a test checks the database accepts every value.
 STATUSES = tuple(status.value for status in InvoiceStatus)
@@ -134,3 +135,35 @@ class DocumentRow(Base):
     size: Mapped[int] = mapped_column(Integer)
     sha256: Mapped[str] = mapped_column(String(64))
     content: Mapped[bytes] = mapped_column(LargeBinary)
+
+
+ROLES = tuple(role.value for role in Role)
+
+
+class AccountRow(Base):
+    __tablename__ = "accounts"
+    __table_args__ = (
+        UniqueConstraint("username"),
+        CheckConstraint(_one_of("role", ROLES), name="role"),
+        CheckConstraint("username = lower(username)", name="username_lower"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    username: Mapped[str] = mapped_column(String(64))
+    display_name: Mapped[str] = mapped_column(String(100))
+    role: Mapped[str] = mapped_column(String(20))
+    active: Mapped[bool] = mapped_column(Boolean)
+    password_hash: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class SessionRow(Base):
+    """A signed-in session. Only the SHA-256 of its token is stored."""
+
+    __tablename__ = "sessions"
+    __table_args__ = (Index(None, "account_id"), Index(None, "expires_at"))
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

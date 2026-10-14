@@ -22,6 +22,8 @@ interface Props {
   /** null while unknown (health not loaded yet). */
   exportConfigured: boolean | null;
   onRetryExport: () => void;
+  /** False for viewers: they see the state, but no actions (the API refuses them too). */
+  canReview: boolean;
 }
 
 /** What can happen next, given the invoice's status. */
@@ -34,7 +36,7 @@ export function DecisionBar(props: Props) {
       <div className="flex flex-wrap items-center gap-3">
         <StatusBadge status={invoice.status} />
         <span className="flex-1 text-sm text-muted">{STATUS_META[invoice.status].description}</span>
-        {invoice.status === "needs_review" && (
+        {props.canReview && invoice.status === "needs_review" && (
           <div className="flex gap-2">
             <RejectButton {...props} />
             <Button variant="primary" onClick={props.onApprove} disabled={props.busy} aria-keyshortcuts="A">
@@ -42,7 +44,7 @@ export function DecisionBar(props: Props) {
             </Button>
           </div>
         )}
-        {invoice.status === "failed" && (
+        {props.canReview && invoice.status === "failed" && (
           <Button onClick={props.onRetry} disabled={props.busy}>
             <RotateCw /> Retry extraction
           </Button>
@@ -54,7 +56,10 @@ export function DecisionBar(props: Props) {
         )}
       </div>
       {invoice.export && <ExportState {...props} />}
-      {invoice.status === "needs_review" && (missing.length > 0 || props.dirty) && (
+      {!props.canReview && (invoice.status === "needs_review" || invoice.status === "failed") && (
+        <p className="mt-3 text-xs text-muted">Read-only: a viewer can follow this invoice, but not change it.</p>
+      )}
+      {props.canReview && invoice.status === "needs_review" && (missing.length > 0 || props.dirty) && (
         <p className="mt-3 text-xs text-[var(--status-review)]">
           {props.dirty
             ? "Save or reset your changes before deciding."
@@ -66,7 +71,7 @@ export function DecisionBar(props: Props) {
 }
 
 /** Where the approved invoice is on its way to the accounting system. */
-function ExportState({ invoice, exportConfigured, onRetryExport, busy }: Props) {
+function ExportState({ invoice, exportConfigured, onRetryExport, busy, canReview }: Props) {
   const exp = invoice.export!;
   const tone = "mt-3 flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-sm";
   if (exp.state === "exported") {
@@ -89,9 +94,11 @@ function ExportState({ invoice, exportConfigured, onRetryExport, busy }: Props) 
         <span className="flex-1">
           Export failed after {exp.attempts} attempt{exp.attempts === 1 ? "" : "s"}: {exp.last_error}
         </span>
-        <Button size="sm" onClick={onRetryExport} disabled={busy}>
-          <RotateCw /> Retry export
-        </Button>
+        {canReview && (
+          <Button size="sm" onClick={onRetryExport} disabled={busy}>
+            <RotateCw /> Retry export
+          </Button>
+        )}
       </div>
     );
   }

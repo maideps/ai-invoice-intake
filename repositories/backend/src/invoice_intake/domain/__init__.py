@@ -4,6 +4,19 @@ Imports nothing from other layers and nothing outside the standard library
 (enforced by arch-007, ``backend/tools/check_layer_imports.py``).
 """
 
+from .accounts import (
+    PERMISSIONS,
+    Account,
+    AccountRepository,
+    DuplicateUsernameError,
+    InvalidAccountError,
+    Permission,
+    Role,
+    SessionRepository,
+    check_password,
+    clean_display_name,
+    normalize_username,
+)
 from .actors import Actor, ActorKind
 from .audit import AuditAction, AuditEvent
 from .errors import (
@@ -37,6 +50,17 @@ from .repository import Document, InvoicePage, InvoiceRepository
 from .status import TRANSITIONS, InvoiceStatus, allowed_next, is_terminal
 
 __all__ = [
+    "PERMISSIONS",
+    "Account",
+    "AccountRepository",
+    "DuplicateUsernameError",
+    "InvalidAccountError",
+    "Permission",
+    "Role",
+    "SessionRepository",
+    "check_password",
+    "clean_display_name",
+    "normalize_username",
     "EXPORTER",
     "FIELD_NAMES",
     "OUTPUT_SCHEMA",

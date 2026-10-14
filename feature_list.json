@@ -370,6 +370,32 @@
           "repair": "Resolve cross-layer issues and rerun full verification."
         }
       ]
+    },
+    {
+      "id": "feat-015",
+      "name": "Sign-in and roles",
+      "behavior": "People sign in with a username and password; the API identifies them from a session cookie instead of the trusted X-User header and enforces three roles (viewer reads, reviewer also uploads and decides, admin also manages accounts on a Users screen); the audit trail records the signed-in user; the Docker demo creates one demo account per role and lists them on the sign-in page.",
+      "verification": "Tests cover sign-in, sign-out, sessions and every endpoint for each role (401 signed out, 403 for the wrong role); the end-to-end run signs in as a reviewer and as a viewer; the compose smoke test signs in with a demo account; the full check and CI pass.",
+      "dependencies": [
+        "feat-014"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis issues and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve cross-layer issues and rerun full verification."
+        }
+      ]
     }
   ]
 }

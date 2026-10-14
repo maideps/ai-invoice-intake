@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight, FileStack, RefreshCw, SearchX, WifiOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, FileStack, RefreshCw, SearchX, WifiOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router";
 
 import { ApiError } from "@/api/client";
 import { PAGE_SIZE, useInvoices, useStats } from "@/api/queries";
+import { useCan } from "@/app/session";
 import { Button } from "@/components/ui/button";
 import { isStatus, STATUS_META, type InvoiceStatus } from "@/lib/status";
 
@@ -15,6 +16,7 @@ import { UploadDropzone } from "./UploadDropzone";
 const HIGHLIGHT_MS = 6000;
 
 export function QueuePage() {
+  const canUpload = useCan("upload");
   const [params, setParams] = useSearchParams();
   const status = isStatus(params.get("status")) ? (params.get("status") as InvoiceStatus) : null;
   const page = Math.max(1, Number(params.get("page")) || 1);
@@ -42,7 +44,15 @@ export function QueuePage() {
         </div>
       </header>
 
-      <UploadDropzone onUploaded={highlight.add} />
+      {canUpload ? (
+        <UploadDropzone onUploaded={highlight.add} />
+      ) : (
+        <p className="flex items-center gap-2 rounded-2xl border border-border bg-surface px-5 py-4 text-sm text-muted">
+          <Eye className="size-4 shrink-0" aria-hidden="true" />
+          You're signed in as a viewer: you can open every invoice and its audit trail, but not upload or
+          decide.
+        </p>
+      )}
 
       <section aria-labelledby="queue-heading" className="space-y-4">
         <h2 id="queue-heading" className="sr-only">

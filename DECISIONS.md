@@ -395,6 +395,51 @@ This file records significant architectural decisions, their context, alternativ
 - Positive: the same versions on every machine and every day, verified by hash; upgrades are deliberate commits; the image and the tests run the same versions.
 - Negative: two generated files of about 3,000 lines in the repository. Adding a package now needs `npm run lock:backend` (the test says so). A fresh `setup:backend` on Windows took about 4 minutes.
 
+### D-019: Sign-in with sessions, and three roles enforced by the API
+
+**Date:** 2026-10-14
+**Status:** accepted
+**Context:** Until feat-015 the API trusted an `X-User` header: anyone could act as anyone, and the audit trail's "who approved it" proved nothing. The author chose three roles (viewer, reviewer, admin) with a Users screen for admins, and demo accounts listed on the sign-in page of the Docker demo, so visitors still get in within seconds.
+**Decision:**
+- **Roles** (domain):
+  - viewer: read
+  - reviewer: read, upload, review
+  - admin: all of that and manage accounts
+
+  Inactive accounts can do nothing. The audit trail records the username, which never changes.
+- **Passwords:** `hashlib.scrypt` (n=2^14, r=8, p=1, a 16-byte salt) stored as `scrypt$n$r$p$salt$hash`, so the cost can change later. Comparison is constant-time, and an unknown username still costs one hash, so timing doesn't reveal which usernames exist. Passwords have 10–256 characters.
+- **Sessions:**
+  - The token is `secrets.token_urlsafe(32)`; only its SHA-256 is stored, so a database copy holds no usable sessions.
+  - Sessions expire after 12 hours (configurable). Expired ones are removed on sign-in.
+  - Signing out deletes the session. Deactivating an account or setting its password deletes all of its sessions; a role change applies on the next request.
+- **The cookie:** HttpOnly (scripts can't read it), `SameSite=Lax` (cross-site POSTs don't carry it), `Path=/`, and `Secure` when `INVOICE_INTAKE_SESSION_COOKIE_SECURE` is set. Sign-in accepts JSON only, so a forged HTML form can't sign anyone in either. That covers cross-site request forgery without tokens, because every state-changing route is a non-GET that browsers won't send cross-site with the cookie.
+- **API:**
+  - `signed_in` gives 401, and `require(permission)` gives 403.
+  - Each route declares `Reader`, `Uploader`, `Reviewer` or `Admin` as its first parameter, so the check runs before the route's transaction starts.
+  - `/health`, sign-in, sign-out and the demo list are public.
+  - `tests/test_api_auth.py` reads every route from the OpenAPI document and fails if one isn't classified. It then checks 401 signed out, 403 for each role below the requirement, and access at the requirement.
+- **Account management:** admins only. Usernames are unique and lower case. The last active admin can't be demoted or deactivated. `python -m invoice_intake.accounts` creates the first admin; it reads passwords from a prompt or stdin, never from an argument.
+- **Demo accounts:** `sam.rivera` (reviewer), `alex.chen` (viewer) and `jordan.lee` (admin), with public passwords.
+  - They are created only by `accounts demo`, which the Docker seed and `npm run seed` run. Existing accounts are never changed.
+  - They are listed by `GET /auth/demo-accounts` only when `INVOICE_INTAKE_DEMO_ACCOUNTS` is on, as in the Docker demo.
+- **UI:**
+  - `<SignedInOnly>` shows the sign-in page without a session, and any 401 returns there.
+  - `useCan()` hides what the role can't do: viewers get the same screens read-only, with a note.
+  - Admins get the Users screen.
+**Alternatives considered:**
+- JWTs in local storage — Rejected: scripts could read them (any XSS steals the session), and they can't be revoked before they expire. A server-side session ends the moment it is deleted.
+- A CSRF token on every request — Not needed with SameSite=Lax cookies and no state-changing GETs. It would be revisited if the API had to accept cross-site requests.
+- Argon2 or bcrypt packages — Rejected for now: scrypt is in the standard library, memory-hard, and the stored parameters allow a later change.
+- An identity provider or single sign-on (OIDC) — Out of scope for a self-contained demo. The session layer is where it would plug in.
+- Rate limiting sign-in — Deferred: there is no public deployment. A deployment must add it, in the app or at the proxy.
+**Consequences:**
+- Positive: the audit trail names a person who proved who they are; roles are enforced by the API and tested on every route; viewers can be given read access safely.
+- Negative:
+  - Every API client must sign in first: the seed, the e2e, the smoke test and the screenshot tool now do.
+  - The demo passwords are public by design.
+  - There is no password reset by email; an admin, or the command line, sets a new one.
+  - Sign-in is not rate limited yet.
+
 ### D-020: Small clock steps don't refuse an action
 
 **Date:** 2026-10-14

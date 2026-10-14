@@ -22,7 +22,7 @@ from invoice_intake.domain import (
 from invoice_intake.services.intake import InvoiceNotFoundError
 from invoice_intake.services.review import VersionConflictError
 
-from .dependencies import CurrentUser, ReviewServiceDep
+from .dependencies import Reviewer, ReviewServiceDep
 from .schemas import ApproveIn, EditFieldsIn, InvoiceOut, ProblemOut, RejectIn
 
 router = APIRouter(prefix="/invoices", tags=["review"])
@@ -36,32 +36,36 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
 
 @router.patch("/{invoice_id}/fields", response_model=InvoiceOut, responses=_ERRORS)
 def edit_fields(
-    invoice_id: UUID, body: EditFieldsIn, service: ReviewServiceDep, user: CurrentUser
+    account: Reviewer, invoice_id: UUID, body: EditFieldsIn, service: ReviewServiceDep
 ) -> InvoiceOut:
     """Correct extracted values. Only the fields sent change; each change is audited with
     its old and new value. Sending values equal to the current ones records nothing."""
     return _handle(
         lambda: service.edit_fields(
-            invoice_id, version=body.version, patch=body.fields, reviewer=user
+            invoice_id, version=body.version, patch=body.fields, reviewer=account.actor
         )
     )
 
 
 @router.post("/{invoice_id}/approve", response_model=InvoiceOut, responses=_ERRORS)
 def approve(
-    invoice_id: UUID, body: ApproveIn, service: ReviewServiceDep, user: CurrentUser
+    account: Reviewer, invoice_id: UUID, body: ApproveIn, service: ReviewServiceDep
 ) -> InvoiceOut:
     """Approve for export. Needs vendor name, invoice number, issue date, currency and total."""
-    return _handle(lambda: service.approve(invoice_id, version=body.version, reviewer=user))
+    return _handle(
+        lambda: service.approve(invoice_id, version=body.version, reviewer=account.actor)
+    )
 
 
 @router.post("/{invoice_id}/reject", response_model=InvoiceOut, responses=_ERRORS)
 def reject(
-    invoice_id: UUID, body: RejectIn, service: ReviewServiceDep, user: CurrentUser
+    account: Reviewer, invoice_id: UUID, body: RejectIn, service: ReviewServiceDep
 ) -> InvoiceOut:
     """Reject with a reason. Rejected invoices are final."""
     return _handle(
-        lambda: service.reject(invoice_id, version=body.version, reviewer=user, reason=body.reason)
+        lambda: service.reject(
+            invoice_id, version=body.version, reviewer=account.actor, reason=body.reason
+        )
     )
 
 

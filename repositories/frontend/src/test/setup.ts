@@ -32,7 +32,10 @@ if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
   });
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: "error" });
+  resetDb(); // signed in as a reviewer, as after every test
+});
 afterEach(() => {
   cleanup();
   server.resetHandlers();

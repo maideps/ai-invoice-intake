@@ -5,7 +5,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 ## Current Objective
 
 - Goal: build AI Invoice Intake, a portfolio project (FastAPI + PostgreSQL + Redis worker + React/TypeScript, OpenAI extraction behind an interface, human approval before export, all data synthetic) using ai-harness-framework, one feature at a time.
-- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI), feat-009 (review detail UI), feat-010 (export webhook), feat-011 (Docker Compose and CI) feat-012 (README, diagram and demo) and feat-013 (repositories layout) are `passing`.
+- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI), feat-009 (review detail UI), feat-010 (export webhook), feat-011 (Docker Compose and CI) feat-012 (README, diagram and demo), feat-013 (repositories layout), feat-014 (backend dependency locks) and feat-015 (sign-in and roles) are `passing`.
 - Branch / commit: `main` (feat-012 `0f1e9ec` and `823bf7a` pushed, CI green; feat-013 is not committed yet)
 - Layout (D-017): the code lives in `repositories/backend` and `repositories/frontend`, each with `scripts/verify` (`npm run verify-all`); the API contract is `contracts/openapi.json`. After pulling the move elsewhere, rerun `npm run setup:backend`., pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
 
@@ -21,6 +21,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - [x] Session 008: feat-012 product-first README with screenshots, Mermaid diagrams and a decisions table; `npm run screenshots`; docs check in lint; five-minute start measured from a clean clone (D-016).
 - [x] Session 009: feat-013 moved the backend and frontend under `repositories/` with their own gates and the OpenAPI contract in `contracts/` (D-017); fixed the samples lookup that broke in the image.
 - [x] Session 010: `docs/INSTALL.md`, a step-by-step install guide (run with Docker, everyday commands, `.env` settings, troubleshooting, development setup), linked from the README; `npm run seed` loads the samples into a development API.
+- [x] Session 011: feat-014 universal hashed dependency locks (D-018); feat-015 sign-in with viewer/reviewer/admin, sessions, Users screen and demo accounts (D-019); small clock steps no longer refuse an action (D-020).
 - [x] Fixed two bugs upstream in `ai-harness-framework` and applied them here with `harness-upgrade`: backup-id collisions (D-021, commit 53eaa48) and adoption-matrix fixtures breaking on customised scripts (D-022, commit 79bd6c4).
 
 ## Verification Evidence
@@ -38,6 +39,9 @@ Fill this at session end for large sessions; keep it current otherwise.
 | Feature gate | `npm run verify-feature -- feat-007` | pass | evidence in `.harness/state/feat-007.json`; 426 backend tests |
 | Feature gate | `npm run verify-feature -- feat-008` | pass | 432 backend + 25 frontend tests; ESLint, tsc, vite build |
 | Feature gate | `npm run verify-feature -- feat-009` | pass, no SKIP | first run with a real e2e layer |
+| Feature gate | `npm run verify-feature -- feat-015` | pass, no SKIP | 554 backend + 71 frontend tests, 2 e2e (reviewer flow; viewer refused by the API) |
+| Route matrix | `tests/test_api_auth.py` with a route's permission removed | FAIL as expected | every route: 401 / 403 / allowed |
+| Locked install | fresh `setup:backend` (Windows), no-cache image build (Linux) | exactly the lock; `uvloop` only on Linux | D-018 |
 | Feature gate | `npm run verify-feature -- feat-013` | pass, no SKIP | includes `npm run verify-all` (backend 471, frontend 61 tests) |
 | Feature gate | `npm run verify-feature -- feat-012` | pass, no SKIP | evidence in `.harness/state/feat-012.json` |
 | Five-minute start | fresh clone + `docker compose up --build`, empty buildx builder | 205 s and 299 s (with lint running on the same machine) | one earlier attempt failed in pip (cause not kept) |
@@ -74,6 +78,9 @@ Fill this at session end for large sessions; keep it current otherwise.
 - D-002: stack and scope (invoices, React, synthetic data, AI behind an interface, human approval required).
 - D-003: backend tooling runs through the `tools/py.mjs` launcher wired into the harness scripts.
 - D-004: `e2e` stays a SKIP placeholder until real end-to-end tests exist (planned feat-009 / feat-011).
+- D-020: an audit event up to 5 s earlier than the previous one is recorded at the previous event's time (clock steps between the API and the worker); more is refused.
+- D-019: sign-in. Roles viewer, reviewer and admin, enforced per route (`Reader`, `Uploader`, `Reviewer`, `Admin`); scrypt passwords; session tokens stored as SHA-256 in an HttpOnly SameSite=Lax cookie, 12 h; admins manage accounts (the last admin stays); `python -m invoice_intake.accounts` (`npm run accounts --`); demo accounts sam.rivera, alex.chen and jordan.lee, created by `accounts demo` and listed only with `INVOICE_INTAKE_DEMO_ACCOUNTS`.
+- D-018: backend installs from `requirements.lock` and `requirements-dev.lock` (uv, universal, hashed) with `pip --require-hashes`; `npm run lock:backend` regenerates them, and a test catches drift.
 - D-017: backend and frontend under `repositories/` (folders, one git repo), each with `scripts/verify` run by `verify-all`; `contracts/openapi.json` owned by the backend, consumed by the frontend; settings find `samples/` by searching upwards.
 - D-016: README product-first (run, walkthrough, diagrams, decisions; harness reference collapsed); `npm run screenshots` from the real stack; `tools/check-docs.mjs` in lint; the five-minute start measured from a clean clone.
 - D-015: `docker-compose.yml`: postgres, redis, migrate (one-shot), api, worker, seed (one-shot, only into an empty instance), accounting (demo receiver), web (nginx with `/api/` proxy). Only web 8080 and accounting 9000 are published. One backend image, with samples from a second build context. `tools/compose-smoke.mjs` runs on 8180/9180. CI: `check` (full harness check plus check-arch) and `compose` (smoke) on push and PR. The e2e stays on the dev servers.
@@ -105,7 +112,8 @@ Fill this at session end for large sessions; keep it current otherwise.
 - Reads load an invoice in one SQL statement on purpose (one snapshot); do not switch them back to separate eager-load queries.
 - The OpenAI provider has never been called for real: only its request shape and error mapping are tested with a stub. Try it once with a real key before relying on it.
 - Confidence from OpenAI is the model's own estimate; present it as a hint in the review UI (feat-009).
-- The `X-User` header is trusted as-is; there is no authentication (non-goal for version 1).
+- Every API client must sign in (D-019); scripts use the demo reviewer (`sam.rivera` / `demo-reviewer`). Sign-in is not rate limited yet.
+- After changing backend dependencies: `npm run lock:backend` and commit both locks (D-018).
 - Ground-truth helpers are in `repositories/backend/tools/samplegen/`; feat-005's fake provider may need them moved into the app package.
 - Upgrading ReportLab changes the PDF bytes: run `npm run samples` and commit the result.
 - In the earlier sandbox, mypy's cache failed on a mounted drive (not seen on Windows); if mypy errors with a cache or sqlite message, set `MYPY_CACHE_DIR` to a normal local folder.
@@ -119,5 +127,5 @@ Fill this at session end for large sessions; keep it current otherwise.
 
 ## Recommended Next Step
 
-- All planned features are done. Candidates for a next round: authentication instead of the trusted `X-User` header; one real run of the OpenAI provider with a key (see D-008); publishing the images; a hosted demo. Add any of them with `npm run add-feature` and a sprint contract first.
+- Candidates for a next round: one real run of the OpenAI provider with a key (see D-008); rate limiting sign-in; publishing the images; a hosted demo. Add any of them with `npm run add-feature` and a sprint contract first.
 - After a UI change, run `npm run screenshots` and commit the images; the docs check in lint catches broken README links.

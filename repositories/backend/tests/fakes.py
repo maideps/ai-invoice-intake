@@ -1,14 +1,18 @@
 """In-memory stand-ins for infrastructure, for tests that do not need PostgreSQL."""
 
+from datetime import datetime
 from uuid import UUID
 
 from invoice_intake.domain import (
+    Account,
     ConcurrentModificationError,
     Document,
+    DuplicateUsernameError,
     Invoice,
     InvoicePage,
     InvoiceStatus,
     RawExtraction,
+    Role,
 )
 from invoice_intake.services.queue import JobKind
 
@@ -98,3 +102,53 @@ class RecordingQueue:
 
     def enqueue(self, invoice_id: UUID, kind: JobKind = "extract") -> None:
         (self.exports if kind == "export" else self.queued).append(invoice_id)
+
+
+class InMemoryAccountRepository:
+    def __init__(self) -> None:
+        self.accounts: dict[UUID, Account] = {}
+
+    def get(self, account_id: UUID) -> Account | None:
+        return self.accounts.get(account_id)
+
+    def get_by_username(self, username: str) -> Account | None:
+        return next((a for a in self.accounts.values() if a.username == username), None)
+
+    def list_all(self) -> list[Account]:
+        return sorted(self.accounts.values(), key=lambda account: account.username)
+
+    def add(self, account: Account) -> None:
+        if self.get_by_username(account.username):
+            raise DuplicateUsernameError(f"the username {account.username!r} is taken")
+        self.accounts[account.id] = account
+
+    def update(self, account: Account) -> None:
+        self.accounts[account.id] = account
+
+    def count_active_admins(self) -> int:
+        return sum(1 for a in self.accounts.values() if a.active and a.role is Role.ADMIN)
+
+
+class InMemorySessionRepository:
+    def __init__(self) -> None:
+        self.sessions: dict[str, tuple[UUID, datetime]] = {}
+
+    def add(
+        self, token_hash: str, account_id: UUID, *, created_at: datetime, expires_at: datetime
+    ) -> None:
+        self.sessions[token_hash] = (account_id, expires_at)
+
+    def account_for(self, token_hash: str, *, now: datetime) -> UUID | None:
+        found = self.sessions.get(token_hash)
+        return found[0] if found and found[1] > now else None
+
+    def delete(self, token_hash: str) -> None:
+        self.sessions.pop(token_hash, None)
+
+    def delete_for_account(self, account_id: UUID) -> None:
+        for key in [key for key, (owner, _) in self.sessions.items() if owner == account_id]:
+            del self.sessions[key]
+
+    def delete_expired(self, *, now: datetime) -> None:
+        for key in [key for key, (_, expires) in self.sessions.items() if expires <= now]:
+            del self.sessions[key]

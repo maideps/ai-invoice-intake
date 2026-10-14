@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 
-from .app_helpers import make_app
+from .app_helpers import make_app, sign_in
 from .fakes import RecordingQueue
 
 pytestmark = pytest.mark.postgres
@@ -25,6 +25,7 @@ def queue() -> RecordingQueue:
 @pytest.fixture
 def client(engine: Engine, queue: RecordingQueue) -> Iterator[TestClient]:
     with TestClient(make_app(engine, queue, max_upload_bytes=64 * 1024)) as client:
+        sign_in(client, engine)
         yield client
 
 
@@ -46,7 +47,6 @@ def test_upload_a_sample_then_read_it_back_with_its_audit_event(client: TestClie
     created = client.post(
         "/invoices",
         files={"file": (SAMPLE.name, pdf, "application/pdf")},
-        headers={"X-User": "reviewer@example.com"},
     )
 
     assert created.status_code == 201
@@ -64,7 +64,7 @@ def test_upload_a_sample_then_read_it_back_with_its_audit_event(client: TestClie
     assert event["sequence"] == 1
     assert event["action"] == "status_changed"
     assert (event["from_status"], event["to_status"]) == (None, "uploaded")
-    assert (event["actor_kind"], event["actor_name"]) == ("user", "reviewer@example.com")
+    assert (event["actor_kind"], event["actor_name"]) == ("user", "maide")  # signed in
 
     document = client.get(f"/invoices/{invoice_id}/document")
     assert document.status_code == 200

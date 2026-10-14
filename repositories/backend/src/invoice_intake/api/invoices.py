@@ -21,7 +21,14 @@ from invoice_intake.services.intake import (
     UploadTooLargeError,
 )
 
-from .dependencies import CurrentUser, ExportServiceDep, ExtractionServiceDep, IntakeServiceDep
+from .dependencies import (
+    ExportServiceDep,
+    ExtractionServiceDep,
+    IntakeServiceDep,
+    Reader,
+    Reviewer,
+    Uploader,
+)
 from .schemas import AuditEventOut, InvoiceOut, InvoicePageOut, StatsOut
 
 T = TypeVar("T")
@@ -37,17 +44,17 @@ _UPLOAD_ERRORS: dict[type[UploadRejectedError], int] = {
 
 @router.post("", status_code=201, response_model=InvoiceOut)
 def upload_invoice(
+    account: Uploader,
     request: Request,
     response: Response,
     service: IntakeServiceDep,
-    user: CurrentUser,
     file: Annotated[UploadFile, File(description="Invoice as PDF, PNG or JPEG")],
 ) -> InvoiceOut:
     """Store an uploaded invoice in ``uploaded`` status and record who uploaded it."""
     limit: int = request.app.state.settings.max_upload_bytes
     content = file.file.read(limit + 1)  # one byte over the limit is enough to refuse it
     try:
-        invoice = service.upload(filename=file.filename, content=content, uploaded_by=user)
+        invoice = service.upload(filename=file.filename, content=content, uploaded_by=account.actor)
     except UploadRejectedError as error:
         raise HTTPException(_UPLOAD_ERRORS[type(error)], str(error)) from error
     response.headers["Location"] = str(request.url_for("get_invoice", invoice_id=invoice.id))
@@ -56,6 +63,7 @@ def upload_invoice(
 
 @router.get("", response_model=InvoicePageOut)
 def list_invoices(
+    _: Reader,
     service: IntakeServiceDep,
     status: InvoiceStatus | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
@@ -68,19 +76,21 @@ def list_invoices(
 
 # Declared before "/{invoice_id}" so "stats" is not read as an invoice id.
 @router.get("/stats", response_model=StatsOut)
-def invoice_stats(service: IntakeServiceDep) -> StatsOut:
+def invoice_stats(_: Reader, service: IntakeServiceDep) -> StatsOut:
     """How many invoices are in each status, for the queue header and its filters."""
     by_status = service.stats()
     return StatsOut(total=sum(by_status.values()), by_status=by_status)
 
 
 @router.get("/{invoice_id}", response_model=InvoiceOut)
-def get_invoice(invoice_id: UUID, service: IntakeServiceDep) -> InvoiceOut:
+def get_invoice(_: Reader, invoice_id: UUID, service: IntakeServiceDep) -> InvoiceOut:
     return InvoiceOut.of(_found(service.get, invoice_id))
 
 
 @router.get("/{invoice_id}/events", response_model=list[AuditEventOut])
-def get_invoice_events(invoice_id: UUID, service: IntakeServiceDep) -> list[AuditEventOut]:
+def get_invoice_events(
+    _: Reader, invoice_id: UUID, service: IntakeServiceDep
+) -> list[AuditEventOut]:
     """The invoice's audit trail, oldest first."""
     return [AuditEventOut.of(event) for event in _found(service.get, invoice_id).events]
 
@@ -90,7 +100,7 @@ def get_invoice_events(invoice_id: UUID, service: IntakeServiceDep) -> list[Audi
     response_class=Response,
     responses={200: {"content": {"application/pdf": {}, "image/png": {}, "image/jpeg": {}}}},
 )
-def get_invoice_document(invoice_id: UUID, service: IntakeServiceDep) -> Response:
+def get_invoice_document(_: Reader, invoice_id: UUID, service: IntakeServiceDep) -> Response:
     """The original uploaded file, byte for byte."""
     document = _found(service.document, invoice_id)
     return Response(content=document.content, media_type=document.content_type)
@@ -106,12 +116,12 @@ def get_invoice_document(invoice_id: UUID, service: IntakeServiceDep) -> Respons
     },
 )
 def extract_invoice(
-    invoice_id: UUID, service: ExtractionServiceDep, user: CurrentUser
+    account: Reviewer, invoice_id: UUID, service: ExtractionServiceDep
 ) -> InvoiceOut:
     """Queue the invoice for the extraction worker. Uploads are queued automatically; use this
     to retry a ``failed`` invoice (recorded as your decision) or to nudge a stuck one."""
     try:
-        invoice = service.request(invoice_id, requested_by=user)
+        invoice = service.request(invoice_id, requested_by=account.actor)
     except InvoiceNotFoundError as error:
         raise HTTPException(404, str(error)) from error
     except NotExtractableError as error:
@@ -125,7 +135,7 @@ def extract_invoice(
     response_model=InvoiceOut,
     responses={404: {"description": "Unknown invoice"}, 409: {"description": "Not approved"}},
 )
-def export_invoice(invoice_id: UUID, service: ExportServiceDep) -> InvoiceOut:
+def export_invoice(_: Reviewer, invoice_id: UUID, service: ExportServiceDep) -> InvoiceOut:
     """Queue another delivery to the export webhook, for example after it failed."""
     try:
         invoice = service.request(invoice_id)

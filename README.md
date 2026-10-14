@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/maideps/ai-invoice-intake/actions/workflows/ci.yml/badge.svg)](https://github.com/maideps/ai-invoice-intake/actions/workflows/ci.yml)
 
-**Upload an invoice, let an AI read it, check every field against the document, and only then send it to accounting.** A full-stack, human-in-the-loop invoice pipeline: FastAPI, PostgreSQL, a Redis-backed worker and a React + TypeScript review dashboard. Every AI output and every human decision is kept in an append-only audit trail.
+**Upload an invoice, let an AI read it, check every field against the document, and only then send it to accounting.** A full-stack, human-in-the-loop invoice pipeline: FastAPI, PostgreSQL, a Redis-backed worker and a React + TypeScript review dashboard. People sign in with a role (viewer, reviewer, admin), and every AI output and every human decision is kept in an append-only audit trail under who made it.
 
 ![The review screen: the original PDF on the left with the total highlighted where it is printed, the extracted fields with their confidence on the right](docs/images/review.png)
 
@@ -18,7 +18,7 @@ cd ai-invoice-intake
 docker compose up --build
 ```
 
-Open **http://localhost:8080** once the log says the seed uploaded the samples. The first start downloads the base images and dependencies and builds two images: from an empty build cache it took between three and a half and five minutes here, clone included, depending on the network and what else the machine is doing. After that it starts in seconds.
+Open **http://localhost:8080** once the log says the seed uploaded the samples, and sign in with one of the demo accounts listed there: **Sam Rivera** (reviewer) for the main flow, **Alex Chen** (viewer, read-only) or **Jordan Lee** (admin, also manages accounts). The first start downloads the base images and dependencies and builds two images: from an empty build cache it took between three and a half and five minutes here, clone included, depending on the network and what else the machine is doing. After that it starts in seconds.
 
 Then try the main flow:
 
@@ -26,8 +26,9 @@ Then try the main flow:
 2. Open one. Click a field, such as **Total**, and the value lights up where it is printed in the PDF. Amber fields are ones the model was unsure about.
 3. Correct a field if you like, save, and press **Approve** (or the `A` key).
 4. A few seconds later the invoice shows **Exported**. A demo accounting system received it as a signed webhook: `docker compose logs accounting` prints the delivery, and http://localhost:9000/deliveries lists them.
+5. Sign out (menu at the top right) and sign in as Alex Chen: the same screens, read-only. As Jordan Lee, the **Users** screen manages accounts.
 
-`Ctrl+C` stops it. `docker compose down` removes the containers and keeps the data; `docker compose down -v` deletes the data too. Extraction uses a deterministic `fake` provider, so no API key or network is needed. To use OpenAI instead, start it with `INVOICE_INTAKE_EXTRACTION_PROVIDER=openai INVOICE_INTAKE_OPENAI_API_KEY=...`. If ports 8080 or 9000 are taken, set `INVOICE_INTAKE_WEB_PORT` or `INVOICE_INTAKE_ACCOUNTING_PORT`. The database password and webhook secret are fixed demo values: this stack is meant for your machine, not a server ([D-015](DECISIONS.md#d-015-docker-compose-for-the-whole-product-and-the-projects-own-ci)).
+`Ctrl+C` stops it. `docker compose down` removes the containers and keeps the data; `docker compose down -v` deletes the data too. Extraction uses a deterministic `fake` provider, so no API key or network is needed. To use OpenAI instead, start it with `INVOICE_INTAKE_EXTRACTION_PROVIDER=openai INVOICE_INTAKE_OPENAI_API_KEY=...`. If ports 8080 or 9000 are taken, set `INVOICE_INTAKE_WEB_PORT` or `INVOICE_INTAKE_ACCOUNTING_PORT`. The database password, the webhook secret and the demo accounts' passwords are fixed demo values: this stack is meant for your machine, not a server ([D-015](DECISIONS.md#d-015-docker-compose-for-the-whole-product-and-the-projects-own-ci)).
 
 ## A walk through it
 
@@ -42,6 +43,10 @@ Then try the main flow:
 **Approval and export.** Only a person can approve, and only an approved invoice is ever exported. The audit trail shows who did what: the upload, the AI's reading, a reviewer's correction (old and new value), the approval and the delivery to the accounting system. If the webhook fails, the worker retries with backoff; each failed attempt is recorded, and the screen offers **Retry export** when the attempts run out.
 
 ![An exported invoice: the document beside its audit trail, from upload to correction, approval and delivery](docs/images/exported.png)
+
+**Signing in and roles.** Every action is tied to a signed-in account, so the audit trail's "who approved it" can be trusted. A **viewer** reads everything; a **reviewer** also uploads and decides; an **admin** also manages accounts on the Users screen (add, change a role, deactivate, set a password). The API enforces each role on every route, not just the UI. In the Docker demo the sign-in page lists one demo account per role.
+
+<img src="docs/images/sign-in.png" alt="The sign-in page with the three demo accounts" width="440"> <img src="docs/images/users.png" alt="The Users screen: three accounts with their roles" width="440">
 
 ## How it works
 
@@ -76,6 +81,7 @@ What holds it together:
 - **AI output is a draft.** The model's answer is validated against one schema in one place and kept in the audit trail whether it is accepted or not. Nothing reaches `exported` without a person's approval.
 - **The audit trail cannot be rewritten.** A database trigger refuses updates and deletes on audit events; an invoice is rebuilt by replaying its trail through the lifecycle rules.
 - **Slow work happens in the background.** An upload answers in milliseconds. Jobs go to Redis only after the transaction commits. The queue never loses a job: a worker that crashes leaves it to be picked up again. The steps are idempotent, so running one twice is harmless.
+- **Who did what can be trusted.** People sign in; the session is an HttpOnly, SameSite cookie whose token is stored only as a hash; passwords are scrypt hashes. Every route declares the role it needs, and a test walks all routes so a new one can't be left open.
 - **Concurrent reviewers don't overwrite each other.** Every edit and decision carries the version the reviewer saw; a stale one is refused with 409 and the screen offers a reload.
 - **The provider is configuration.** The extraction provider sits behind an interface owned by the domain; one factory reads the setting, and tests never call a real model.
 - **Layering is enforced.** The domain imports only the standard library, and the API and services never import infrastructure. `npm run check-arch` fails if either rule is broken.
@@ -87,11 +93,11 @@ What holds it together:
 
 **Background extraction.** An upload returns at once with status `uploaded`; the job goes to Redis after the upload is committed. The worker (`npm run dev:worker`) moves the invoice to `extracting` and then `needs_review`. Provider errors and rejected output are retried (`INVOICE_INTAKE_EXTRACTION_MAX_ATTEMPTS`, default 3, with doubling waits from `INVOICE_INTAKE_EXTRACTION_RETRY_BASE_SECONDS`, default 5); when the attempts run out the invoice is `failed` with the reason in its audit trail. `POST /invoices/{id}/extract` (202) asks for another try; on a `failed` invoice it records who asked. If Redis is down during an upload, the upload still succeeds and the worker's periodic sweep queues it later (D-010).
 
-**Review.** `PATCH /invoices/{id}/fields`, `POST /invoices/{id}/approve` and `POST /invoices/{id}/reject` work only in `needs_review` and record the acting user from `X-User`. Each request carries the invoice `version` the reviewer saw; if the invoice changed since, the answer is 409 and nothing changes. Approval needs vendor name, invoice number, issue date, currency and total; rejection needs a reason (D-009).
+**Review.** `PATCH /invoices/{id}/fields`, `POST /invoices/{id}/approve` and `POST /invoices/{id}/reject` work only in `needs_review` and record the signed-in reviewer (D-019). Each request carries the invoice `version` the reviewer saw; if the invoice changed since, the answer is 409 and nothing changes. Approval needs vendor name, invoice number, issue date, currency and total; rejection needs a reason (D-009).
 
 **Export.** Approving an invoice queues an export job. The worker posts the invoice as JSON to `INVOICE_INTAKE_EXPORT_WEBHOOK_URL` (the stand-in for an accounting system) and moves it to `exported` on any 2xx answer. Non-2xx answers, timeouts and connection errors are retried (`INVOICE_INTAKE_EXPORT_MAX_ATTEMPTS`, default 5, with doubling waits from `INVOICE_INTAKE_EXPORT_RETRY_BASE_SECONDS`, default 10), and each failed attempt is recorded in the audit trail. After the last attempt the review screen offers "Retry export" (`POST /invoices/{id}/export`, 202). Only approved invoices are ever sent. The body carries `payload_version`, the invoice id, file name, who approved it and when, the audit version and the fields in the API's format. Each request has an `Idempotency-Key` (the invoice id, the same on every attempt), a per-attempt `X-Invoice-Intake-Delivery` id, and, when `INVOICE_INTAKE_EXPORT_WEBHOOK_SECRET` is set, `X-Invoice-Intake-Signature: sha256=<HMAC-SHA256 of the body>`. Delivery is at least once, so receivers should drop duplicates by `Idempotency-Key`. Without a URL, export is off: approved invoices wait, the screen says so, and `GET /health` reports `export_configured: false` (D-014).
 
-**Dashboard.** `repositories/frontend/` is React 19 + TypeScript (strict) on Vite 7, styled with Tailwind CSS v4 and small shadcn/ui-style components, with TanStack Query for server state (D-012). The review queue shows a count per status (doubling as filters, kept in the URL), a drop zone for uploads, and a list that refreshes every 2 seconds while the worker is busy (15 seconds otherwise), so invoices visibly move from queued to needs review. It has loading, empty and error states, light and dark themes (following the system by default), and an "acting as" name that is sent as `X-User`. API types are generated from FastAPI's OpenAPI document (`npm run api:types`); tests fail if they drift.
+**Dashboard.** `repositories/frontend/` is React 19 + TypeScript (strict) on Vite 7, styled with Tailwind CSS v4 and small shadcn/ui-style components, with TanStack Query for server state (D-012). The review queue shows a count per status (doubling as filters, kept in the URL), a drop zone for uploads, and a list that refreshes every 2 seconds while the worker is busy (15 seconds otherwise), so invoices visibly move from queued to needs review. It has loading, empty and error states, light and dark themes (following the system by default), and a sign-in page with a user menu; viewers see the same screens read-only, and admins get a Users screen. API types are generated from FastAPI's OpenAPI document (`npm run api:types`); tests fail if they drift.
 
 **Review screen.** Opening an invoice shows the original PDF (pdf.js, with its text layer) beside the extracted fields. Selecting a field finds its value in the document and highlights it, trying local formats such as `3 627,23` and `14/02/2026`. Low-confidence fields are tinted amber, with a "next low-confidence field" button. A totals check confirms the lines add up to the subtotal and the subtotal plus tax to the total, in exact cents. Edits, approval and rejection send the invoice `version`; a conflict shows a reload banner instead of an error. The audit trail reads as a timeline, and the keyboard works too (`J`/`K`, `E`, `S`, `A`, `R`, `?`).
 
@@ -115,6 +121,8 @@ Each decision is recorded with its context, the alternatives and the consequence
 | [D-013](DECISIONS.md#d-013-end-to-end-tests-run-the-real-stack-with-playwright) | End-to-end tests run the real stack (containers, API, worker, web app) with Playwright. |
 | [D-014](DECISIONS.md#d-014-export-to-a-signed-webhook-from-the-same-worker) | Export to an HMAC-signed webhook from the same worker, with an idempotency key, retries, and a state derived from the trail. |
 | [D-015](DECISIONS.md#d-015-docker-compose-for-the-whole-product-and-the-projects-own-ci) | One-command Docker Compose stack with seeded samples and a demo receiver; CI checks the source and the packaged stack. |
+| [D-018](DECISIONS.md#d-018-backend-dependencies-installed-from-universal-hash-checked-lock-files) | Backend packages install from universal, hash-checked lock files, like the frontend's `package-lock.json`. |
+| [D-019](DECISIONS.md#d-019-sign-in-with-sessions-and-three-roles-enforced-by-the-api) | Sign-in with server-side sessions in an HttpOnly cookie, scrypt passwords, three roles enforced on every route, and demo accounts for the Docker demo. |
 | [D-016](DECISIONS.md#d-016-a-product-first-readme-checked-and-reproducible) | This README: product first, screenshots regenerated from the real stack, links and scripts checked in lint, the five-minute start measured from a clean clone. |
 
 ## Development
@@ -130,13 +138,12 @@ npm run db:migrate      # applies the Alembic migrations
 npm run dev:backend     # serves http://localhost:8000 (docs at /docs)
 npm run dev:worker      # in a second terminal: extracts uploaded invoices in the background
 npm run dev:frontend    # in a third: the dashboard on http://localhost:5173 (calls the API via /api)
-curl http://localhost:8000/health
-curl -F "file=@samples/invoices/invoice-001.pdf" -H "X-User: you" http://localhost:8000/invoices
-curl http://localhost:8000/invoices/<id>                   # a moment later: needs_review, fields, confidence
-curl -X PATCH -H "X-User: you" -H "Content-Type: application/json" -d '{"version": 4, "fields": {"total": "120.00"}}' http://localhost:8000/invoices/<id>/fields
-curl -X POST -H "X-User: you" -H "Content-Type: application/json" -d '{"version": 5}' http://localhost:8000/invoices/<id>/approve
+npm run seed            # with the API running: creates the demo accounts, uploads the 12 samples
+npm run accounts -- create kim.lee --name "Kim Lee" --role admin   # an account of your own (asks for a password)
 npm run samples         # regenerate the synthetic invoices in samples/invoices
 ```
+
+Sign in on the dashboard with a demo account (`sam.rivera` / `demo-reviewer`), or try the API at http://localhost:8000/docs: call `POST /auth/sign-in` there first, and the browser keeps the session cookie for the other calls.
 
 Configuration comes from `INVOICE_INTAKE_*` environment variables (see [`repositories/backend/.env.example`](repositories/backend/.env.example)). The development database listens on port 5433 so it does not clash with a local PostgreSQL.
 
