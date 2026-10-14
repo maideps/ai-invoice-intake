@@ -39,7 +39,7 @@ Out of scope: upgrading any package (the locks pin what resolves today), Dependa
   - a fresh `npm run setup:backend` (the venv deleted first) on Windows
   - `docker compose build --no-cache`, an install on Linux from the universal lock
   - `npm run compose:smoke`
-- [ ] After the push (when the author agrees to commit): CI green, an install on Linux from the dev lock
+- [x] After the push (when the author agrees to commit): CI green, an install on Linux from the dev lock (run 38594156191)
 
 ## What Success Looks Like
 

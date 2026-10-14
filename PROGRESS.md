@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (all fifteen features passing: feat-001 to feat-015)
+- Current active feature (or none): none (all sixteen features passing: feat-001 to feat-015 and polish-portfolio); released as v1.0.0
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -263,3 +263,24 @@ Keep the "Current Verified State" block current at all times; the session log be
   - The demo passwords are public by design.
   - A Docker build hung once with no output (Docker Desktop) and passed on retry.
 - Next best step: commit and push when the author agrees, and confirm CI.
+
+### Session 012 — 2026-10-14
+
+- Goal: the author's task list (`claude-code-tasks.md` in `ai-maide-github-profile-improvements`): Part A (the profile README) and Part B (portfolio polish, feature `polish-portfolio`).
+- Completed:
+  - **Part A:** `maideps/maideps` README replaced with `README V3.md` (commit `4ab7425`), after checking that the live file matched `README V2.md`. It adds a "Currently" line and the ai-invoice-intake row.
+  - **B1:** ten topics added to `maideps/ai-invoice-intake`; the description is unchanged, with no homepage. Pins have no API, so the author does them (see the handoff).
+  - **B2:** CI green (runs 38594156191 and 38606616294); the badge points at `ci.yml`.
+  - **B3:**
+    - `tools/check-docs.mjs` requires alt text on every image, shown to catch three forms of a missing alt.
+    - The README decisions table is in numeric order and adds D-017 and D-020.
+    - "Built with ai-harness-framework" explains the process files in the root.
+    - The harness command reference moved verbatim to `docs/HARNESS.md` (in `productRoots`, covered by the docs check).
+    - The stale "twelve features" count is gone.
+    - The task list's "README link to #" and "About twice" are GitHub's own page interface (the README panel's tab buttons and the About sidebar rendered for two screen widths), not this repository.
+  - **B5:** a fresh clone of `main` built with an empty buildx builder. The quick start worked on the README's alternative ports (the author's copy held 8080 and 9000): demo accounts on the sign-in page, a reviewer sign-in, and 12 invoices in "Needs review", ready about 3 minutes after the clone started. The check script itself stalled after the stack was up; the same checks were done by hand.
+- Verification run: `npm run check` before each commit; `npm run verify-feature -- polish-portfolio`; `npm run check-arch`.
+- Evidence captured: `.harness/state/polish-portfolio.json` (written by verify-feature).
+- Commits: 03fa869 (alt-text check), 0a3525c (README and `docs/HARNESS.md`), then these records; release `v1.0.0` on the last of them.
+- Known risk or unresolved issue: the author's local stack was stopped from its terminal during the session (forced stop); `docker compose up` brings it back with its data.
+- Next best step: the author pins the two repositories on the profile; then a real run of the OpenAI provider and rate limiting for sign-in.

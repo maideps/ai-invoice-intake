@@ -396,6 +396,32 @@
           "repair": "Resolve cross-layer issues and rerun full verification."
         }
       ]
+    },
+    {
+      "id": "polish-portfolio",
+      "name": "Portfolio polish",
+      "behavior": "The public repository reads as a finished portfolio project: topics on GitHub, a README whose decisions table is in order, a short \"Built with ai-harness-framework\" section explaining the process files in the root, the harness command reference moved to docs/HARNESS.md, alt text on every image (checked by the docs check), and a v1.0.0 release.",
+      "verification": "The docs check fails on an image without alt text; npm run check and CI pass; a fresh clone following only the README quick start reaches the sign-in page with demo accounts and the 12 invoices; the v1.0.0 release exists with a short summary.",
+      "dependencies": [
+        "feat-015"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis issues and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve cross-layer issues and rerun full verification."
+        }
+      ]
     }
   ]
 }

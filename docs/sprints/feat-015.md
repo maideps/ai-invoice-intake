@@ -69,7 +69,7 @@ Out of scope: single sign-on, self-service sign-up and password reset by email, 
   - the e2e signs in as the reviewer for the existing flow, and as a viewer, who can't approve
   - `npm run compose:smoke` signs in with a demo account
   - screenshots regenerated
-- [ ] After the push (when the author agrees to commit): CI green
+- [x] After the push (when the author agrees to commit): CI green (run 38594156191)
 
 ## What Success Looks Like
 
