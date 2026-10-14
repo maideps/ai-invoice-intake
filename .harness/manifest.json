@@ -148,7 +148,8 @@
     "docker-compose.yml",
     ".github/workflows/publish.yml",
     "tools/",
-    "docs/sprints/"
+    "docs/sprints/",
+    "docs/images/"
   ],
   "optionalComponents": [
     {

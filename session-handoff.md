@@ -5,8 +5,8 @@ Fill this at session end for large sessions; keep it current otherwise.
 ## Current Objective
 
 - Goal: build AI Invoice Intake, a portfolio project (FastAPI + PostgreSQL + Redis worker + React/TypeScript, OpenAI extraction behind an interface, human approval before export, all data synthetic) using ai-harness-framework, one feature at a time.
-- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI), feat-009 (review detail UI), feat-010 (export webhook) and feat-011 (Docker Compose and CI) are `passing`. feat-012 (README, diagram and demo) is the last one left.
-- Branch / commit: `main` (feat-010 `3845c56` pushed; feat-011 is the next commit), pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
+- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI), feat-009 (review detail UI), feat-010 (export webhook), feat-011 (Docker Compose and CI) and feat-012 (README, diagram and demo) are `passing`. All twelve planned features are done.
+- Branch / commit: `main` (feat-011 `c72f3bc` pushed, CI green; feat-012 pushed after it), pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
 
 ## Completed This Session
 
@@ -17,6 +17,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - [x] Session 005: feat-006 review and approval API with audited edits, version checks and required fields for approval (D-009); feat-007 background extraction worker on a reliable Redis queue with retries and a `failed` status (D-010); feat-008 React dashboard with the live review queue, wired into the harness gates (D-012); feat-009 review screen (PDF with click-to-highlight, confidence, totals check, decisions, timeline, shortcuts) and real Playwright e2e on the full stack (D-013).
 - [x] Session 006: feat-010 export webhook: signed delivery per approval from the same worker (job kinds), retries with `export_failed` audit events, export state derived from the trail, "Retry export", migration 0005, e2e with a local receiver (D-014).
 - [x] Session 007: feat-011 `docker compose up --build` runs the whole product with seeded samples and a demo accounting receiver; backend and web images; `npm run compose:smoke`; the project's own GitHub Actions workflow (D-015).
+- [x] Session 008: feat-012 product-first README with screenshots, Mermaid diagrams and a decisions table; `npm run screenshots`; docs check in lint; five-minute start measured from a clean clone (D-016).
 - [x] Fixed two bugs upstream in `ai-harness-framework` and applied them here with `harness-upgrade`: backup-id collisions (D-021, commit 53eaa48) and adoption-matrix fixtures breaking on customised scripts (D-022, commit 79bd6c4).
 
 ## Verification Evidence
@@ -34,6 +35,9 @@ Fill this at session end for large sessions; keep it current otherwise.
 | Feature gate | `npm run verify-feature -- feat-007` | pass | evidence in `.harness/state/feat-007.json`; 426 backend tests |
 | Feature gate | `npm run verify-feature -- feat-008` | pass | 432 backend + 25 frontend tests; ESLint, tsc, vite build |
 | Feature gate | `npm run verify-feature -- feat-009` | pass, no SKIP | first run with a real e2e layer |
+| Feature gate | `npm run verify-feature -- feat-012` | pass, no SKIP | evidence in `.harness/state/feat-012.json` |
+| Five-minute start | fresh clone + `docker compose up --build`, empty buildx builder | 205 s and 299 s (with lint running on the same machine) | one earlier attempt failed in pip (cause not kept) |
+| Docs check | `node tools/check-docs.mjs` with planted errors | FAIL on missing image, bad anchor, unknown script | |
 | Feature gate | `npm run verify-feature -- feat-011` | pass, no SKIP | 470 backend + 61 frontend tests; evidence in `.harness/state/feat-011.json` |
 | Compose smoke | `npm run compose:smoke` | all checks pass in ~25 s | asset types, seeded samples, upload, approval, signed export; project removed |
 | Compose by hand | `docker compose up --build` + browser pane | 12 seeded, PDF renders, approve leads to Exported, receiver logs it | found and fixed the `.mjs` content type |
@@ -66,6 +70,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - D-002: stack and scope (invoices, React, synthetic data, AI behind an interface, human approval required).
 - D-003: backend tooling runs through the `tools/py.mjs` launcher wired into the harness scripts.
 - D-004: `e2e` stays a SKIP placeholder until real end-to-end tests exist (planned feat-009 / feat-011).
+- D-016: README product-first (run, walkthrough, diagrams, decisions; harness reference collapsed); `npm run screenshots` from the real stack; `tools/check-docs.mjs` in lint; the five-minute start measured from a clean clone.
 - D-015: `docker-compose.yml`: postgres, redis, migrate (one-shot), api, worker, seed (one-shot, only into an empty instance), accounting (demo receiver), web (nginx with `/api/` proxy). Only web 8080 and accounting 9000 are published. One backend image, with samples from a second build context. `tools/compose-smoke.mjs` runs on 8180/9180. CI: `check` (full harness check plus check-arch) and `compose` (smoke) on push and PR. The e2e stays on the dev servers.
 - D-014: export via the same worker (job `kind`); payload v1 with `Idempotency-Key`, per-attempt delivery id and HMAC-SHA256 signature; any 2xx succeeds; 5 attempts doubling from 10 s; `export_failed` audit events and a state derived from the trail; `POST /export` to start again; no URL = export off (invoices wait, health says so, sweep sends them later); at least once.
 - D-013: `npm run e2e` = `tools/e2e.mjs`: throwaway PostgreSQL (5434) and Redis (6380), migrations, API (8100), worker, Vite (5174), Playwright; full teardown in `finally` (process trees, containers). Supersedes the D-004 SKIP.
@@ -83,7 +88,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - No `failed` status yet: feat-007 (worker) must add it and its transitions to `domain/status.py`.
 - `Invoice` can only be created as a new upload; feat-004 needs a way to rebuild one from stored data and events.
 - `LICENSE` is a CORE file: after every `harness-upgrade`, restore the author line `Copyright (c) 2026 Maidelin Prieto` (D-011).
-- `.github/workflows/ci.yml` is the project's CI (D-015). It is an instance surface, so `harness-upgrade` leaves it alone. Check the first GitHub run after pushing feat-011.
+- `.github/workflows/ci.yml` is the project's CI (D-015). It is an instance surface, so `harness-upgrade` leaves it alone. Its first run (feat-011) passed both jobs.
 - The Compose stack shares image tags (`invoice-intake-backend:local`, `invoice-intake-web:local`) with the smoke test; `docker compose down -v` deletes the demo data.
 - `npm run check` needs Docker Desktop running (it is installed on the author's machine but set to start manually). Without it the database tests fail with a message saying so. `docker compose up --build` is tested (D-015).
 - New audit actions must be added to `AuditAction`, `_NOTE_RULES` in `domain/invoice.py` (or as status changes) and the `ck_audit_events_action` check in a new migration, together (0002 and 0003 show the pattern, including a downgrade that refuses to drop events).
@@ -109,5 +114,5 @@ Fill this at session end for large sessions; keep it current otherwise.
 
 ## Recommended Next Step
 
-- Confirm the GitHub Actions run for feat-011 is green (jobs `check` and `compose`).
-- Start feat-012 (README, diagram and demo): sprint contract in `docs/sprints/feat-012.md`, set `.harness/state/feat-012.json` to active. The README must let a new reader run the project in under five minutes (`docker compose up --build` is the path), with an architecture diagram, screenshots or a GIF of the review flow (take them from the Compose stack with Playwright at full resolution), and a design-decisions section linking D-005 to D-015. Then `npm run verify-feature -- feat-012`.
+- All planned features are done. Candidates for a next round: authentication instead of the trusted `X-User` header; one real run of the OpenAI provider with a key (see D-008); publishing the images; a hosted demo. Add any of them with `npm run add-feature` and a sprint contract first.
+- After a UI change, run `npm run screenshots` and commit the images; the docs check in lint catches broken README links.

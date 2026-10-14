@@ -29,7 +29,7 @@
   ],
   "scripts": {
     "check": "npm run lint && npm run typecheck && npm run test && npm run build && npm run e2e",
-    "lint": "node scripts/framework-check.mjs lint && node tools/py.mjs -m ruff check . && node tools/py.mjs -m ruff format --check . && node tools/web.mjs lint",
+    "lint": "node scripts/framework-check.mjs lint && node tools/py.mjs -m ruff check . && node tools/py.mjs -m ruff format --check . && node tools/web.mjs lint && node tools/check-docs.mjs",
     "typecheck": "node scripts/framework-check.mjs typecheck && node tools/py.mjs -m mypy && node tools/web.mjs typecheck",
     "test": "node scripts/framework-check.mjs test && node tools/py.mjs -m pytest -q && node tools/web.mjs test",
     "build": "node scripts/framework-check.mjs build && node tools/py.mjs -m compileall -q src && node tools/web.mjs build",
@@ -68,7 +68,8 @@
     "db:migrate": "node tools/py.mjs -m alembic upgrade head",
     "samples": "node tools/py.mjs tools/generate_samples.py",
     "api:types": "node tools/py.mjs tools/export_openapi.py && node tools/web.mjs api:types",
-    "compose:smoke": "node tools/compose-smoke.mjs"
+    "compose:smoke": "node tools/compose-smoke.mjs",
+    "screenshots": "node tools/screenshots.mjs"
   },
   "bin": {
     "create-harness": "scripts/create-harness.mjs",

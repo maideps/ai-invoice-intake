@@ -9,7 +9,7 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Project root: ai-invoice-intake (harness adopter repo, created with create-harness)
 - Primary startup command: ./init.sh
 - Primary verification command: npm run check
-- Current active feature (or none): none (feat-001 to feat-011 passing; next: feat-012)
+- Current active feature (or none): none (all twelve features passing: feat-001 to feat-012)
 - Current blocker (or none): none (baseline green after harness-upgrade; see D-001)
 
 ## Session Log
@@ -148,3 +148,30 @@ Keep the "Current Verified State" block current at all times; the session log be
 - Files or artifacts updated: docker-compose.yml, backend/Dockerfile, backend/.dockerignore, backend/tools/seed_samples.py, backend/tools/demo_receiver.py, backend/tests/test_compose_tools.py, frontend/Dockerfile, frontend/.dockerignore, frontend/nginx.conf, tools/compose-smoke.mjs, package.json (`compose:smoke`), .github/workflows/ci.yml, README.md, docs/, DECISIONS.md, PROGRESS.md, session-handoff.md.
 - Known risk or unresolved issue: the first CI run on GitHub is still to be confirmed; the Compose stack uses fixed demo credentials (local use only); the backend image is about 350 MB.
 - Next best step: feat-012 (README, diagram and demo), sprint contract first.
+
+### Session 008 — 2026-10-13
+
+- Goal: feat-012 (README, diagram and demo), committed and pushed without a stop (the author asked to go to the end).
+- Completed:
+  - Sprint contract `docs/sprints/feat-012.md`.
+  - README rewritten product-first:
+    - pitch, CI badge and hero screenshot
+    - "Run it in five minutes" with the main flow to try
+    - a walkthrough (queue, review in light and dark, export with its audit trail)
+    - Mermaid component and lifecycle diagrams, and what holds the system together
+    - a decisions table (D-005 to D-016, with checked anchors)
+    - development, then how it was built
+
+    The per-feature details and the harness command reference are collapsed; the command table stays, so the harness check still applies.
+  - `docs/images/` (queue, review, review-dark, exported; about 100 KB each), declared in `productRoots`.
+  - `tools/screenshots.mjs` (`npm run screenshots`) and `tools/lib/compose-stack.mjs` (shared with the refactored `tools/compose-smoke.mjs`).
+  - `tools/check-docs.mjs` in `npm run lint`.
+  - D-016; ARCHITECTURE.md; quality document.
+  - Screenshot fixes found by looking at them: a Spanish locale in headless Chromium (`7806,20 US$`), so the locale is now fixed to `en-US`; a shot taken mid-scroll after focusing a field; the export shot reframed on the audit trail.
+  - Five-minute check: a fresh clone of github.com/maideps/ai-invoice-intake, `docker compose up --build` with an empty buildx builder (no layer cache, base images and dependencies downloaded). The first attempt failed once in the pip dependency layer, with no output kept. A single build of the same image on its own then passed, and two full runs passed: 205 s and 299 s (with lint running on the same machine) from clone to 12 invoices in "Needs review".
+- Verification run: `npm run verify-feature -- feat-012`; `npm run check-arch`; `npm run lint` with the docs check (shown to fail on planted errors); `npm run compose:smoke` after the refactor; `npm run screenshots`.
+- Evidence captured: `.harness/state/feat-012.json` (written by verify-feature).
+- Commits: c72f3bc (feat-011, pushed; first CI run green); feat-012 is committed and pushed in this session.
+- Files or artifacts updated: README.md, docs/images/, docs/ARCHITECTURE.md, docs/quality-document.md, docs/sprints/feat-012.md, DECISIONS.md, tools/check-docs.mjs, tools/screenshots.mjs, tools/lib/compose-stack.mjs, tools/compose-smoke.mjs, package.json (`screenshots`, lint), .harness/manifest.json (`productRoots`), PROGRESS.md, session-handoff.md.
+- Known risk or unresolved issue: the single failed cold build has no recorded cause, most likely a network error in pip; if it happens again, keep the full build log. The OpenAI provider has still never been called with a real key.
+- Next best step: none planned. Possible next features: authentication (replacing the trusted `X-User`), a real run of the OpenAI provider, image publishing.

@@ -316,4 +316,31 @@ This file records significant architectural decisions, their context, alternativ
 - Publishing images to a registry — Out of scope (no deployment target).
 **Consequences:**
 - Positive: `docker compose up --build` is the whole product with data on screen in seconds. CI proves both the source (`check`) and the packaging (`compose`).
-- Negative: the backend image is about 350 MB (the OpenAI SDK and uvicorn extras). The demo credentials are fixed, which is fine for synthetic local data but not for deployment. CI needs about 10 minutes for the `check` job.
+- Negative: the backend image is about 350 MB (the OpenAI SDK and uvicorn extras). The demo credentials are fixed, which is fine for synthetic local data but not for deployment. the first CI run took about 2 minutes for `check` and 1 minute for `compose`.
+
+### D-016: A product-first README, checked and reproducible
+
+**Date:** 2026-10-13
+**Status:** accepted
+**Context:** feat-012: a new reader must be able to run the project from the README alone in under five minutes, and understand what it does and why. The README began as the harness template, with the project's notes added feature by feature, and the harness checks that it documents every make target.
+**Decision:**
+- The README is ordered for a visitor:
+  1. Pitch and a hero screenshot.
+  2. "Run it in five minutes": three commands and the main flow to try.
+  3. A walkthrough with screenshots.
+  4. Mermaid diagrams of the components and the lifecycle (GitHub renders them).
+  5. What holds the system together.
+  6. The decisions table, linking to this file.
+  7. Development, then how it was built.
+
+  The per-feature details and the harness command reference move into collapsed sections. The command table stays, so the harness check still applies.
+- The screenshots come from the real Compose stack through `npm run screenshots`. It uses its own project and ports, the same data steps (a correction, three approvals that the worker exports, one rejection), a fixed locale, light and dark, and 1440 × 900. A UI change is one command away from updated images.
+- `tools/check-docs.mjs` runs in `npm run lint` and checks four documents (README, ARCHITECTURE, PRODUCT, samples). It checks that relative links and images exist, that `#anchors` match GitHub's heading ids, and that every `npm run` script mentioned exists. It does not fetch external links, so it stays offline and gives the same answer every time.
+- The five-minute claim is measured, not assumed. The test clones the public repository into an empty folder and builds with a new, empty buildx builder, so there is no layer cache and the base images and dependencies are downloaded. The README states the measured time.
+**Alternatives considered:**
+- An animated GIF of the flow — Rejected: large, lossy, and hard to regenerate. Still screenshots show more detail and come from a script.
+- A link checker that fetches external URLs — Rejected: it is slow and fails without network or when a site is down; external links are few and stable.
+- Moving the harness command reference to its own document — Rejected: `docs/` files are classified by the manifest. A collapsed section keeps the check and the reference without a new surface.
+**Consequences:**
+- Positive: the first screen of the repository shows the product. Broken links, images or script names fail the lint. The screenshots can always be regenerated.
+- Negative: `npm run screenshots` needs Docker and Playwright's Chromium and takes about a minute. The measured start time depends on the network.

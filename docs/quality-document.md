@@ -18,12 +18,13 @@ Rate each module on a scale of A (excellent) / B (good) / C (acceptable) / D (ne
 | frontend review screen and e2e | A | A | A | A | B |
 | export webhook (domain, service, sender, worker, API, UI) | A | A | A | A | B |
 | packaging and CI (Compose, images, smoke test, workflow) | A | n/a | A | A | B |
+| README and documentation tooling (screenshots, docs check) | A | n/a | A | A | n/a |
 
 ## Summary
 
-- **Overall Quality Grade:** B (backend complete through review with background extraction; dashboard has the queue and the review screen; end-to-end tests run the real stack; approved invoices are exported to a signed webhook; one-command Compose stack and CI on every push)
+- **Overall Quality Grade:** A- (all twelve planned features passing; backend complete through review with background extraction; dashboard has the queue and the review screen; end-to-end tests run the real stack; approved invoices are exported to a signed webhook; one-command Compose stack and CI on every push)
 - **Blockers:** none
-- **Areas requiring attention:** the README walkthrough, diagram and demo (feat-012); the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
+- **Areas requiring attention:** the OpenAI provider has never been called with a real key; there is no authentication (the acting user is a trusted header); the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
 
 ## Notes
 
@@ -39,6 +40,7 @@ Rate each module on a scale of A (excellent) / B (good) / C (acceptable) / D (ne
 - Session 005 (feat-009) added the review screen: the pdf.js viewer with click-to-highlight, the field editor with confidence bands, a totals check in exact cents, decisions with version checks, a conflict banner, the audit timeline and keyboard shortcuts, plus real end-to-end tests (D-013). 55 frontend tests (pure logic and component tests against an in-memory API with the real rules); the Playwright run passes in about 5 s on the real stack and leaves no containers or processes behind. Checked at full resolution in light and dark mode: the total `3 627,23` is highlighted in the French sample. Performance B: pdf.js is lazy-loaded in its own chunk.
 - Session 006 (feat-010) added export: a signed webhook delivery per approval from the same worker (queue jobs gained a `kind`), retries with the failures in the audit trail, an export state derived from the trail, `POST /invoices/{id}/export`, `export_configured` in health, and migration 0005 (D-014). 463 backend tests, including the sender against a real local HTTP server (signature, non-2xx, timeout, unreachable), "nothing exported before approval" for every other status, and the worker delivering to a local server on PostgreSQL and Redis (with 503s retried); 61 frontend tests; the Playwright run now checks exactly one signed delivery and the "Exported" state. The e2e found a real harness bug: Playwright ran through `spawnSync`, which blocked the in-process receiver. Performance B: one HTTP call per approval, short transactions around it.
 - Session 007 (feat-011) added packaging and CI (D-015). It covers the Compose stack (migrate, api, worker, seed, demo accounting receiver, nginx web), the backend and web images, `npm run compose:smoke`, and a GitHub Actions workflow running `npm run check`, `check-arch` and the smoke test. The run has 470 backend tests: the new ones cover the demo receiver against the real webhook sender (valid, wrong and missing signatures) and the seed on PostgreSQL (12 uploads, then none). The non-Docker backend tests also pass on Linux in a `python:3.14-slim` container. The manual check in a browser found that nginx served pdf.js's `.mjs` worker as `application/octet-stream`, so the PDF could not render. That is fixed, and the smoke test now checks every built asset's content type. Performance B: the backend image is about 350 MB; the stack stops in about 3 s.
+- Session 008 (feat-012) rewrote the README product-first, with a hero screenshot, "Run it in five minutes", a walkthrough, Mermaid component and lifecycle diagrams, and a decisions table linking each entry (D-016). New tools: `npm run screenshots` regenerates the four images from the real Compose stack (fixed data steps and locale, light and dark), and `tools/check-docs.mjs` runs in lint (shown to fail on a missing image, a bad anchor and an unknown script). The five-minute start was measured from a fresh clone of the public repository with an empty build cache. The first attempt failed once in the dependency layer and its pip output was lost; the next runs took 205 s and 299 s (with lint running on the same machine).
 
 ---
 
