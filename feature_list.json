@@ -344,6 +344,32 @@
           "repair": "Resolve cross-layer issues and rerun full verification."
         }
       ]
+    },
+    {
+      "id": "feat-014",
+      "name": "Backend dependency locks",
+      "behavior": "The backend installs from committed, hash-checked lock files resolved for every supported platform: requirements.lock for the image, requirements-dev.lock for development and CI, regenerated with one command.",
+      "verification": "A fresh setup and a no-cache image build install exactly the locked versions with hashes on Windows and Linux; a test fails when pyproject.toml and the locks disagree; the full check, verify-all, the compose smoke test and CI pass.",
+      "dependencies": [
+        "feat-013"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis issues and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve cross-layer issues and rerun full verification."
+        }
+      ]
     }
   ]
 }

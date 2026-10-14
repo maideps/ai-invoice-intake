@@ -150,6 +150,8 @@ Configuration comes from `INVOICE_INTAKE_*` environment variables (see [`reposit
 
 The backend and the frontend each have their own gate: `npm run verify-all` runs `repositories/backend/scripts/verify` (ruff, mypy, pytest, compile check) and `repositories/frontend/scripts/verify` (ESLint, `tsc`, Vitest, build); either also runs alone with `node repositories/<name>/scripts/verify` (D-017).
 
+Backend dependencies are locked like the frontend's `package-lock.json`. `requirements.lock` (the image) and `requirements-dev.lock` (development and CI) pin every package with its hashes, for every platform. Change `pyproject.toml`, run `npm run lock:backend`, and commit both (D-018).
+
 `npm run screenshots` regenerates the images on this page from the real Compose stack (the same data and screens every time), and `npm run api:types` regenerates the frontend's API types after an API change.
 
 ```text

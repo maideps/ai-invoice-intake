@@ -30,6 +30,7 @@ dev = [
     "ruff>=0.6",
     "testcontainers[postgres]>=4.8",
     "types-reportlab==4.5.1.20260827",
+    "uv>=0.13",  # regenerates the lock files: npm run lock:backend (D-018)
 ]
 
 [tool.setuptools.packages.find]

@@ -206,10 +206,10 @@ npm run setup:backend
 npm run setup:frontend
 ```
 
-- `setup:backend` creates a Python virtual environment in `repositories/backend/.venv` and installs the backend with its development tools. It doesn't touch your system Python.
+- `setup:backend` creates a Python virtual environment in `repositories/backend/.venv` and installs the backend with its development tools. It installs exactly the versions in `repositories/backend/requirements-dev.lock`, and checks each download against its recorded hash. It doesn't touch your system Python.
 - `setup:frontend` installs the dashboard's packages in `repositories/frontend/node_modules`, plus the Chromium browser that the end-to-end tests use.
 
-Run them again after a `git pull` that changes dependencies. If a command later says `Backend dependencies are not installed` or `Frontend dependencies are not installed`, this step is the fix.
+Run them again after a `git pull` that changes dependencies. To add or upgrade a backend package, edit `repositories/backend/pyproject.toml`, run `npm run lock:backend` to regenerate the lock files, and commit them together. A test fails if they disagree. If a command later says `Backend dependencies are not installed` or `Frontend dependencies are not installed`, this step is the fix.
 
 ### Step 3: Start PostgreSQL and Redis
 

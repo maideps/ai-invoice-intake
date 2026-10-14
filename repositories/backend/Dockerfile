@@ -14,11 +14,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Dependencies first, from pyproject.toml alone, so a code change reuses this layer.
-COPY pyproject.toml ./
-COPY src/invoice_intake/__init__.py src/invoice_intake/__init__.py
-RUN pip install . && pip uninstall --yes invoice-intake
+# Dependencies first, exactly as locked and hash-checked (D-018), so a code change reuses
+# this layer. Regenerate the lock with: npm run lock:backend
+COPY requirements.lock ./
+RUN pip install --require-hashes -r requirements.lock
 
+COPY pyproject.toml ./
 COPY src ./src
 RUN pip install --no-deps . && rm -rf build src/*.egg-info
 

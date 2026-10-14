@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Runs Python tooling for the backend with the right interpreter, from any OS.
 //
-//   node tools/py.mjs setup                create repositories/backend/.venv and install the backend with dev tools
+//   node tools/py.mjs setup                create repositories/backend/.venv and install the backend with dev tools,
+//                                          exactly as locked in requirements-dev.lock (D-018)
 //   node tools/py.mjs -m pytest -q         run a Python module inside repositories/backend/
 //
 // Interpreter order: $INVOICE_INTAKE_PYTHON, repositories/backend/.venv, then python3 / python on PATH.
@@ -47,7 +48,9 @@ if (args[0] === "setup") {
   }
   if (!venvPython() && run(python, ["-m", "venv", ".venv"]) !== 0) process.exit(1);
   const venv = venvPython();
-  process.exit(run(venv, ["-m", "pip", "install", "--quiet", "-e", ".[dev]"]));
+  // The locked, hash-checked dependencies first; then the project itself, which has no hash.
+  const locked = run(venv, ["-m", "pip", "install", "--quiet", "--require-hashes", "-r", "requirements-dev.lock"]);
+  process.exit(locked === 0 ? run(venv, ["-m", "pip", "install", "--quiet", "--no-deps", "-e", "."]) : locked);
 }
 
 const python = process.env.INVOICE_INTAKE_PYTHON || venvPython() || systemPython();

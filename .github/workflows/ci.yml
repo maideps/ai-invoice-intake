@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: "3.14"
           cache: pip
-          cache-dependency-path: repositories/backend/pyproject.toml
+          cache-dependency-path: repositories/backend/requirements-dev.lock
 
       - name: Install the backend (venv with dev tools)
         run: npm run setup:backend
