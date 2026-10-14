@@ -150,7 +150,8 @@
     "tools/",
     "docs/sprints/",
     "docs/images/",
-    "docs/INSTALL.md"
+    "docs/INSTALL.md",
+    "docs/HARNESS.md"
   ],
   "optionalComponents": [
     {

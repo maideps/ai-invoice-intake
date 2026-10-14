@@ -6,7 +6,7 @@
 
 ![The review screen: the original PDF on the left with the total highlighted where it is printed, the extracted fields with their confidence on the right](docs/images/review.png)
 
-> **Portfolio project.** All invoices are synthetic: generated, with invented vendors and amounts. The project was built one feature at a time with [ai-harness-framework](https://github.com/maideps/ai-harness-framework) (see [How it was built](#how-it-was-built)).
+> **Portfolio project.** All invoices are synthetic: generated, with invented vendors and amounts. The project was built one feature at a time with [ai-harness-framework](https://github.com/maideps/ai-harness-framework) (see [Built with ai-harness-framework](#built-with-ai-harness-framework)).
 
 ## Run it in five minutes
 
@@ -121,9 +121,11 @@ Each decision is recorded with its context, the alternatives and the consequence
 | [D-013](DECISIONS.md#d-013-end-to-end-tests-run-the-real-stack-with-playwright) | End-to-end tests run the real stack (containers, API, worker, web app) with Playwright. |
 | [D-014](DECISIONS.md#d-014-export-to-a-signed-webhook-from-the-same-worker) | Export to an HMAC-signed webhook from the same worker, with an idempotency key, retries, and a state derived from the trail. |
 | [D-015](DECISIONS.md#d-015-docker-compose-for-the-whole-product-and-the-projects-own-ci) | One-command Docker Compose stack with seeded samples and a demo receiver; CI checks the source and the packaged stack. |
+| [D-016](DECISIONS.md#d-016-a-product-first-readme-checked-and-reproducible) | This README: product first, screenshots regenerated from the real stack, links and scripts checked in lint, the five-minute start measured from a clean clone. |
+| [D-017](DECISIONS.md#d-017-backend-and-frontend-as-repositories-of-the-multi-repo-component-in-one-git-repository) | The backend and the frontend live in `repositories/`, each with its own `scripts/verify`; the OpenAPI document is the contract between them, in `contracts/`. |
 | [D-018](DECISIONS.md#d-018-backend-dependencies-installed-from-universal-hash-checked-lock-files) | Backend packages install from universal, hash-checked lock files, like the frontend's `package-lock.json`. |
 | [D-019](DECISIONS.md#d-019-sign-in-with-sessions-and-three-roles-enforced-by-the-api) | Sign-in with server-side sessions in an HttpOnly cookie, scrypt passwords, three roles enforced on every route, and demo accounts for the Docker demo. |
-| [D-016](DECISIONS.md#d-016-a-product-first-readme-checked-and-reproducible) | This README: product first, screenshots regenerated from the real stack, links and scripts checked in lint, the five-minute start measured from a clean clone. |
+| [D-020](DECISIONS.md#d-020-small-clock-steps-dont-refuse-an-action) | An audit event a few seconds behind the previous one (a clock stepping back) is recorded at the previous event's time instead of refusing the action. |
 
 ## Development
 
@@ -170,70 +172,11 @@ tools/                   launchers and scripts: e2e, compose smoke test, screens
 docs/                    architecture, product, quality, sprint contracts
 ```
 
-## How it was built
+## Built with ai-harness-framework
 
-The project was built in twelve features with [ai-harness-framework](https://github.com/maideps/ai-harness-framework), an engineering workflow for AI coding agents. Each feature started with a sprint contract (what will be built and how it will be verified, in [docs/sprints/](docs/sprints/)) and ended with `npm run verify-feature`: static checks, tests, the full check including the end-to-end run, and recorded evidence. Decisions, progress and handoffs between sessions live in the repository:
+This project was built one feature at a time with [ai-harness-framework](https://github.com/maideps/ai-harness-framework), a workflow that keeps AI coding agents consistent and reviewable across long, multi-session work. Each feature has a sprint contract in [docs/sprints/](docs/sprints/) and is done only when `npm run verify-feature` passes the static checks, the tests and the full end-to-end check, and records the evidence.
 
-- `feature_list.json` — feature declarations: id, behavior, dependencies, verification layers
-- `.harness/state/<id>.json` — that feature's mutable state (`state`, `evidence`); one file per feature
-- `PROGRESS.md` — session continuity log
-- `DECISIONS.md` — architectural decisions log
-- `session-handoff.md` — multi-session handoff notes
-
-<details>
-<summary>Harness command reference</summary>
-
-### Verification Layers
-
-| Layer | Command | What It Checks |
-|-------|---------|----------------|
-| 1 | `make lint` / `npm run lint` | Static analysis |
-| 1b | `make typecheck` / `npm run typecheck` | Type safety |
-| 2 | `make test` / `npm run test` | Unit and integration tests |
-| 3 | `make build` / `npm run build` | Build verification |
-| 3b | `make e2e` / `npm run e2e` | End-to-end tests |
-
-Layers that are not configured report **SKIP** and do not count as verified.
-
-### Command Targets
-
-Every make target is mirrored 1:1 by an npm script:
-
-| Purpose | Make form | npm form |
-|---|---|---|
-| Install dependencies | `make setup` | `npm run setup` |
-| Dev server | `make dev` | `npm run dev` |
-| Full verification | `make check` | `npm run check` |
-| Layer 1: static analysis | `make lint` | `npm run lint` |
-| Layer 1b: type checking | `make typecheck` | `npm run typecheck` |
-| Layer 2: runtime tests | `make test` | `npm run test` |
-| Layer 3: build verification | `make build` | `npm run build` |
-| Layer 3b: end-to-end tests | `make e2e` | `npm run e2e` |
-| Architecture enforcement | `make check-arch` | `npm run check-arch` |
-| Feature verification | `make verify-feature F=<id>` | `npm run verify-feature -- <id>` |
-| Multi-repo verification | `make verify-all` | `npm run verify-all` |
-| Create a worktree lane | `make lane-new F=<id>` | `npm run lane-new -- <id>` |
-| List worktree lanes | `make lane-list` | `npm run lane-list` |
-| Land a passing lane | `make lane-land F=<id>` | `npm run lane-land -- <id>` |
-| Drop a lane | `make lane-drop F=<id>` | `npm run lane-drop -- <id>` |
-| Migrate feature state to shards | `make migrate-feature-state` | `npm run migrate-feature-state` |
-| Add a feature stub | `make add-feature ID=<id> NAME=<name>` | `npm run add-feature -- <id> <name>` |
-| Verify + record trail | `make vcr` | `npm run vcr` |
-| Record session start | `make session-start` | `npm run session-start` |
-| Record session end | `make session-end` | `npm run session-end` |
-| Pre-commit clean state | `make clean-check` | `npm run clean-check` |
-| Generate an adopter repo | `make create-harness D=<dir>` | `npm run create-harness -- <dir>` |
-| Apply a harness upgrade | `make harness-upgrade D=<dir>` | `npm run harness-upgrade -- <dir>` |
-| Local harness audit | `make harness-audit D=<dir>` | `npm run harness-audit -- <dir>` |
-| List upgrade backups | `make backup-list` | `npm run backup-list` |
-| Pin a backup | `make backup-pin F=<id>` | `npm run backup-pin -- <id>` |
-| Unpin a backup | `make backup-unpin F=<id>` | `npm run backup-unpin -- <id>` |
-| Restore a backup | `make backup-restore F=<id\|latest>` | `npm run backup-restore -- <id\|latest>` |
-| Session report | `make report` | `npm run report` |
-| Periodic sweep | `make sweep` | `npm run sweep` |
-| Show all targets | `make help` | `npm run help` |
-
-</details>
+That is why some files in the root are the process record rather than product code: `AGENTS.md` is the workflow every agent follows, and `CLAUDE.md`, `GEMINI.md` and `codex.md` point each agent to it. `feature_list.json` lists the features, `PROGRESS.md` (with `claude-progress.md` as an alias) and `session-handoff.md` record what each session did and verified, and `DECISIONS.md` records why. The harness commands are in [docs/HARNESS.md](docs/HARNESS.md).
 
 ## Documentation
 
@@ -243,7 +186,7 @@ Every make target is mirrored 1:1 by an npm script:
 - [Design decisions](DECISIONS.md)
 - [Quality document](docs/quality-document.md)
 - [Synthetic samples](samples/README.md)
-- [Observability](docs/OBSERVABILITY.md), [Tools & MCP](docs/TOOLS.md), [Usage guide](docs/USAGE.md) (harness)
+- [Harness commands](docs/HARNESS.md), [Observability](docs/OBSERVABILITY.md), [Tools & MCP](docs/TOOLS.md), [Usage guide](docs/USAGE.md) (the build process)
 
 ## License
 
