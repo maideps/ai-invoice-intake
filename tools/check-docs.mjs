@@ -4,6 +4,7 @@
 // - every relative link and image resolves to a file in the repository
 // - every #anchor matches a heading in its target document (with GitHub's heading ids)
 // - every `npm run <script>` mentioned exists in the root package.json
+// - every image has alt text, for screen readers and when an image does not load
 //
 // Links to other sites are not fetched: the check runs offline and gives the same answer
 // every time.
@@ -47,6 +48,17 @@ function links(markdown) {
   return found;
 }
 
+/** Images without alt text: markdown `![](src)` or an `<img>` without a non-empty alt. */
+function imagesWithoutAlt(markdown) {
+  const prose = withoutCodeBlocks(markdown).replace(/`[^`\n]*`/g, "");
+  const missing = [];
+  for (const match of prose.matchAll(/!\[\s*\]\(\s*<?([^)\s>]+)/g)) missing.push(match[1]);
+  for (const match of prose.matchAll(/<img\s[^>]*>/g)) {
+    if (!/\salt="[^"]*\S[^"]*"/.test(match[0])) missing.push(/src="([^"]+)"/.exec(match[0])?.[1] ?? match[0]);
+  }
+  return missing;
+}
+
 const problems = [];
 const idsCache = new Map();
 const idsOf = (file) => {
@@ -57,6 +69,8 @@ const idsOf = (file) => {
 for (const doc of DOCS) {
   const file = path.join(root, doc);
   const markdown = readFileSync(file, "utf8");
+
+  for (const image of imagesWithoutAlt(markdown)) problems.push(`${doc}: image without alt text: ${image}`);
 
   for (const target of links(markdown)) {
     if (/^[a-z][a-z0-9+.-]*:/i.test(target)) continue; // https:, mailto: and the like
@@ -80,4 +94,4 @@ if (problems.length) {
   for (const problem of problems) console.error(`[check-docs] ${problem}`);
   process.exit(1);
 }
-console.log(`[check-docs] ${DOCS.length} documents: links, anchors and npm scripts all resolve`);
+console.log(`[check-docs] ${DOCS.length} documents: links, anchors and npm scripts resolve; every image has alt text`);
