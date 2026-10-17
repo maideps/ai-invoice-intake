@@ -1,0 +1,5 @@
+# Commits git blame should look through (GitHub uses this file automatically).
+# Locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# chore: normalize line endings (D-021): line endings only, no content change
+4a1dfa8a25d1899d922ec80dc93ebe90bf759fec

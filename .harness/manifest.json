@@ -174,7 +174,8 @@
     "docs/sprints/",
     "docs/images/",
     "docs/INSTALL.md",
-    "docs/HARNESS.md"
+    "docs/HARNESS.md",
+    ".git-blame-ignore-revs"
   ],
   "optionalComponents": [
     {
