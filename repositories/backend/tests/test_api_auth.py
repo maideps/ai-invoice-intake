@@ -12,9 +12,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 
 from invoice_intake.domain import DuplicateUsernameError, Permission, Role
-from invoice_intake.infrastructure.accounts import SqlAccountRepository, SqlSessionRepository
+from invoice_intake.infrastructure.accounts import (
+    SqlAccountRepository,
+    SqlSessionRepository,
+    SqlSignInFailureRepository,
+)
 from invoice_intake.infrastructure.database import make_session_factory
-from invoice_intake.infrastructure.tables import SessionRow
+from invoice_intake.infrastructure.tables import SessionRow, SignInFailureRow
 from invoice_intake.services.accounts import DEMO_ACCOUNTS, token_hash
 
 from .app_helpers import TEST_PASSWORD, add_account, make_app, sign_in
@@ -303,3 +307,68 @@ def test_sql_sessions_expire_and_are_deleted(engine: Engine) -> None:
         repository.add("c" * 64, account.id, created_at=now, expires_at=now + timedelta(hours=1))
         repository.delete_for_account(account.id)
         assert repository.account_for("c" * 64, now=now) is None
+
+
+# Rate limiting (D-022)
+
+
+def test_too_many_failures_are_429_with_retry_after(engine: Engine) -> None:
+    add_account(engine, "maide")
+    with TestClient(make_app(engine, sign_in_max_failures=2)) as client:
+        for _ in range(2):
+            wrong = client.post(
+                "/auth/sign-in", json={"username": "maide", "password": "nope-nope-1"}
+            )
+            assert wrong.status_code == 401
+
+        refused = client.post(
+            "/auth/sign-in", json={"username": "maide", "password": TEST_PASSWORD}
+        )
+
+    assert refused.status_code == 429
+    assert refused.json()["detail"].startswith("too many failed sign-ins; try again in about")
+    assert 0 < int(refused.headers["retry-after"]) <= 15 * 60
+    assert "set-cookie" not in refused.headers
+    # The failures were committed although each request was refused; the 429 added none.
+    with make_session_factory(engine).begin() as session:
+        rows = session.scalars(select(SignInFailureRow)).all()
+    assert [(row.username, row.client) for row in rows] == [("maide", "testclient")] * 2
+
+
+def test_signing_in_clears_earlier_failures(client: TestClient, engine: Engine) -> None:
+    add_account(engine, "maide")
+    client.post("/auth/sign-in", json={"username": "maide", "password": "nope-nope-1"})
+
+    sign_in(client, engine, "maide")
+
+    with make_session_factory(engine).begin() as session:
+        assert session.scalars(select(SignInFailureRow)).all() == []
+
+
+def test_sql_sign_in_failures_by_username_and_client(engine: Engine) -> None:
+    now = datetime(2026, 10, 17, 9, tzinfo=timezone.utc)
+
+    with make_session_factory(engine).begin() as session:
+        repository = SqlSignInFailureRepository(session)
+        repository.add("maide", "10.0.0.1", at=now + timedelta(minutes=2))
+        repository.add("maide", "10.0.0.2", at=now)
+        repository.add("other", "10.0.0.1", at=now + timedelta(minutes=1))
+        repository.add("other", "x" * 80, at=now)  # longer than the column: truncated
+
+        assert repository.times_for_username("maide", since=now) == [
+            now,
+            now + timedelta(minutes=2),
+        ]
+        assert repository.times_for_username("maide", since=now + timedelta(minutes=1)) == [
+            now + timedelta(minutes=2)
+        ]
+        assert repository.times_for_client("10.0.0.1", since=now) == [
+            now + timedelta(minutes=1),
+            now + timedelta(minutes=2),
+        ]
+        assert repository.times_for_client("x" * 80, since=now) == [now]
+
+        repository.clear_username("maide")
+        assert repository.times_for_username("maide", since=now) == []
+        repository.delete_before(now + timedelta(minutes=1))
+        assert repository.times_for_username("other", since=now) == [now + timedelta(minutes=1)]

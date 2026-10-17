@@ -167,3 +167,16 @@ class SessionRow(Base):
     account_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class SignInFailureRow(Base):
+    """A failed sign-in, kept for the rate-limit window (D-022). ``username`` is the lowercased
+    name as typed, whether or not an account has it; ``client`` is the client address."""
+
+    __tablename__ = "sign_in_failures"
+    __table_args__ = (Index(None, "username", "failed_at"), Index(None, "client", "failed_at"))
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(64))
+    client: Mapped[str] = mapped_column(String(64))
+    failed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

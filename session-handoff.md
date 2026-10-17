@@ -5,7 +5,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 ## Current Objective
 
 - Goal: build AI Invoice Intake, a portfolio project (FastAPI + PostgreSQL + Redis worker + React/TypeScript, OpenAI extraction behind an interface, human approval before export, all data synthetic) using ai-harness-framework, one feature at a time.
-- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI), feat-009 (review detail UI), feat-010 (export webhook), feat-011 (Docker Compose and CI) feat-012 (README, diagram and demo), feat-013 (repositories layout), feat-014 (backend dependency locks), feat-015 (sign-in and roles) and polish-portfolio (README order, docs/HARNESS.md, alt-text check, topics) are `passing`. Released as `v1.0.0`.
+- Current status: feat-001 (FastAPI service skeleton), feat-002 (invoice domain model and state machine) feat-003 (synthetic invoice generator), feat-004 (persistence and upload API), feat-005 (AI extraction service), feat-006 (review and approval API), feat-007 (background worker and queue), feat-008 (review queue UI), feat-009 (review detail UI), feat-010 (export webhook), feat-011 (Docker Compose and CI) feat-012 (README, diagram and demo), feat-013 (repositories layout), feat-014 (backend dependency locks), feat-015 (sign-in and roles), feat-016 (sign-in rate limiting) and polish-portfolio (README order, docs/HARNESS.md, alt-text check, topics) are `passing`. Released as `v1.0.0`.
 - Branch / commit: `main` (feat-012 `0f1e9ec` and `823bf7a` pushed, CI green; feat-013 is not committed yet)
 - Layout (D-017): the code lives in `repositories/backend` and `repositories/frontend`, each with `scripts/verify` (`npm run verify-all`); the API contract is `contracts/openapi.json`. After pulling the move elsewhere, rerun `npm run setup:backend`., pushed to the public repo https://github.com/maideps/ai-invoice-intake (`origin`, tracking `origin/main`).
 
@@ -24,6 +24,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - [x] Session 011: feat-014 universal hashed dependency locks (D-018); feat-015 sign-in with viewer/reviewer/admin, sessions, Users screen and demo accounts (D-019); small clock steps no longer refuse an action (D-020).
 - [x] Session 012: the profile README (`maideps/maideps`, commit 4ab7425) features the app; repository topics; README decisions in order with D-017 and D-020; "Built with ai-harness-framework"; harness reference moved to `docs/HARNESS.md`; alt-text check; fresh-clone quick start verified; release v1.0.0.
 - [x] Session 013: framework issues #2-#10 checked; framework PRs #20 and #21 (feat-018, feat-019); this project upgraded: generated `PROGRESS.md` with `progress/` notes, generated `docs/HARNESS.md`, `activate`, `.gitattributes` with LF (D-021).
+- [x] Session 014: feat-016 sign-in rate limiting: 5 failures per username or 20 per client address in 15 minutes answer 429 with `Retry-After`; failures in PostgreSQL (migration 0007); nginx sets `X-Forwarded-For` (D-022). Released ai-harness-framework v0.5.0 on GitHub (framework PR #22: npm publishing is manual now).
 - [x] Fixed two bugs upstream in `ai-harness-framework` and applied them here with `harness-upgrade`: backup-id collisions (D-021, commit 53eaa48) and adoption-matrix fixtures breaking on customised scripts (D-022, commit 79bd6c4).
 
 ## Verification Evidence
@@ -115,7 +116,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - Reads load an invoice in one SQL statement on purpose (one snapshot); do not switch them back to separate eager-load queries.
 - The OpenAI provider has never been called for real: only its request shape and error mapping are tested with a stub. Try it once with a real key before relying on it.
 - Confidence from OpenAI is the model's own estimate; present it as a hint in the review UI (feat-009).
-- Every API client must sign in (D-019); scripts use the demo reviewer (`sam.rivera` / `demo-reviewer`). Sign-in is not rate limited yet.
+- Every API client must sign in (D-019); scripts use the demo reviewer (`sam.rivera` / `demo-reviewer`). Sign-in is rate-limited (D-022): wrong passwords lock a username for up to 15 minutes, so scripts must not retry sign-in in a loop.
 - After changing backend dependencies: `npm run lock:backend` and commit both locks (D-018).
 - Ground-truth helpers are in `repositories/backend/tools/samplegen/`; feat-005's fake provider may need them moved into the app package.
 - Upgrading ReportLab changes the PDF bytes: run `npm run samples` and commit the result.
@@ -131,5 +132,5 @@ Fill this at session end for large sessions; keep it current otherwise.
 ## Recommended Next Step
 
 - For the author, by hand: pin `ai-invoice-intake` and `ai-harness-framework` on the profile. GitHub has no API for pins: open https://github.com/maideps, choose **Customize your pins**, tick both repositories and press **Save pins**.
-- Candidates for a next round: one real run of the OpenAI provider with a key (see D-008); rate limiting sign-in; publishing the images; a hosted demo. Add any of them with `npm run add-feature` and a sprint contract first.
+- Candidates for a next round: one real run of the OpenAI provider with a key (see D-008); publishing the images; a hosted demo. Add any of them with `npm run add-feature` and a sprint contract first.
 - After a UI change, run `npm run screenshots` and commit the images; the docs check in lint catches broken README links.

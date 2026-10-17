@@ -6,6 +6,7 @@ which only the SHA-256 is stored.
 
 import hashlib
 import hmac
+import math
 import secrets
 from collections.abc import Callable
 from contextlib import AbstractContextManager
@@ -19,6 +20,7 @@ from invoice_intake.domain import (
     InvalidAccountError,
     Role,
     SessionRepository,
+    SignInFailureRepository,
     check_password,
     clean_display_name,
     normalize_username,
@@ -61,6 +63,28 @@ class InvalidCredentialsError(Exception):
     """Wrong username or password, or an inactive account; deliberately not more specific."""
 
 
+class SignInThrottledError(Exception):
+    """Too many failed sign-ins for this username or client address; try again later (D-022)."""
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        minutes = max(1, math.ceil(retry_after_seconds / 60))
+        unit = "minute" if minutes == 1 else "minutes"
+        super().__init__(f"too many failed sign-ins; try again in about {minutes} {unit}")
+        self.retry_after_seconds = retry_after_seconds
+
+
+@dataclass(frozen=True)
+class SignInPolicy:
+    """How many failures within ``window`` lock a username, or a client address, out."""
+
+    max_per_username: int = 5
+    max_per_client: int = 20
+    window: timedelta = timedelta(minutes=15)
+
+
+DEFAULT_SIGN_IN_POLICY = SignInPolicy()
+
+
 class AccountNotFoundError(LookupError):
     pass
 
@@ -101,31 +125,72 @@ class AccountService:
         clock: Callable[[], datetime],
         session_ttl: timedelta,
         password_cost: int = SCRYPT_N,
+        failures: SignInFailureRepository | None = None,
+        sign_in_policy: SignInPolicy = DEFAULT_SIGN_IN_POLICY,
     ) -> None:
+        """``failures`` turns on rate limiting for sign-in; the app always passes it, while tools
+        that only manage accounts (the command line) need not."""
         self._accounts = accounts
         self._sessions = sessions
+        self._failures = failures
+        self._policy = sign_in_policy
         self._clock = clock
         self._session_ttl = session_ttl
         self._password_cost = password_cost
 
     # Signing in and out
 
-    def sign_in(self, username: str, password: str) -> SignedIn:
+    def sign_in(self, username: str, password: str, *, client: str = "") -> SignedIn:
+        """Start a session, or raise ``InvalidCredentialsError`` (recorded as a failure) or
+        ``SignInThrottledError`` (nothing checked, nothing recorded: the lock never extends
+        itself). Failures are recorded in the caller's transaction, which must commit them."""
+        now = self._clock()
+        key = username.strip().lower()[:64]  # unknown usernames count like real ones
+        self._refuse_if_throttled(key, client, now)
         try:
             account = self._accounts.get_by_username(normalize_username(username))
         except InvalidAccountError:
             account = None
         if account is None:
             verify_password(password, _UNKNOWN_USER_HASH)
+            self._record_failure(key, client, now)
             raise InvalidCredentialsError("wrong username or password")
         if not verify_password(password, account.password_hash) or not account.active:
+            self._record_failure(key, client, now)
             raise InvalidCredentialsError("wrong username or password")
+        if self._failures is not None:
+            self._failures.clear_username(key)
         token = secrets.token_urlsafe(32)
-        now = self._clock()
         self._sessions.delete_expired(now=now)  # housekeeping: expired sessions go here
         expires_at = now + self._session_ttl
         self._sessions.add(token_hash(token), account.id, created_at=now, expires_at=expires_at)
         return SignedIn(account, token, expires_at)
+
+    def _refuse_if_throttled(self, key: str, client: str, now: datetime) -> None:
+        if self._failures is None:
+            return
+        window = self._policy.window
+        self._failures.delete_before(now - window)  # housekeeping, like expired sessions
+        waits = [timedelta(0)]
+        for times, limit in (
+            (
+                self._failures.times_for_username(key, since=now - window),
+                self._policy.max_per_username,
+            ),
+            (
+                self._failures.times_for_client(client, since=now - window) if client else [],
+                self._policy.max_per_client,
+            ),
+        ):
+            if len(times) >= limit:
+                # Locked until the oldest of the last ``limit`` failures leaves the window.
+                waits.append(times[-limit] + window - now)
+        if max(waits) > timedelta(0):
+            raise SignInThrottledError(max(1, math.ceil(max(waits).total_seconds())))
+
+    def _record_failure(self, key: str, client: str, now: datetime) -> None:
+        if self._failures is not None:
+            self._failures.add(key, client, at=now)
 
     def account_for_session(self, token: str) -> Account | None:
         """The active account behind an unexpired session token, or ``None``."""

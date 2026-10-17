@@ -27,7 +27,7 @@ Rate each module on a scale of A (excellent) / B (good) / C (acceptable) / D (ne
 
 - **Overall Quality Grade:** A- (all fifteen features passing; backend complete through review with background extraction; dashboard has the queue and the review screen; end-to-end tests run the real stack; approved invoices are exported to a signed webhook; one-command Compose stack and CI on every push)
 - **Blockers:** none
-- **Areas requiring attention:** the OpenAI provider has never been called with a real key; sign-in is not rate limited (needed before a public deployment); the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
+- **Areas requiring attention:** the OpenAI provider has never been called with a real key; the test suite needs Docker (PostgreSQL and Redis); see `feature_list.json`
 
 ## Notes
 

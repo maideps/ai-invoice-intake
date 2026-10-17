@@ -15,6 +15,8 @@ export const db: {
   accounts: Account[];
   passwords: Record<string, string>;
   demoAccounts: DemoAccount[];
+  /** Failed sign-ins per username; the API locks one out after five (D-022). */
+  signInFailures: Record<string, number>;
 } = {
   invoices: [],
   requests: [],
@@ -24,6 +26,7 @@ export const db: {
   accounts: [],
   passwords: {},
   demoAccounts: [],
+  signInFailures: {},
 };
 
 // The same role rules as the API (D-019).
@@ -105,6 +108,7 @@ export function resetDb(): void {
   db.accounts = [];
   db.passwords = {};
   db.demoAccounts = [];
+  db.signInFailures = {};
   db.account = null;
   sequence = 0;
   // Most tests are about reviewing: start signed in as a reviewer.
@@ -333,10 +337,19 @@ handlers.push(
 
   http.post("*/api/auth/sign-in", async ({ request }) => {
     const body = (await request.json()) as { username: string; password: string };
-    const account = db.accounts.find((a) => a.username === body.username.trim().toLowerCase());
+    const username = body.username.trim().toLowerCase();
+    if ((db.signInFailures[username] ?? 0) >= 5) {
+      return HttpResponse.json(
+        { detail: "too many failed sign-ins; try again in about 15 minutes" },
+        { status: 429, headers: { "Retry-After": "900" } },
+      );
+    }
+    const account = db.accounts.find((a) => a.username === username);
     if (!account?.active || db.passwords[account.username] !== body.password) {
+      db.signInFailures[username] = (db.signInFailures[username] ?? 0) + 1;
       return HttpResponse.json({ detail: "wrong username or password" }, { status: 401 });
     }
+    delete db.signInFailures[username];
     db.account = account;
     return HttpResponse.json(account);
   }),

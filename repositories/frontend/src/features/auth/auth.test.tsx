@@ -30,6 +30,21 @@ describe("signing in", () => {
     expect(screen.getByRole("button", { name: "Signed in as Maide P (Reviewer)" })).toBeInTheDocument();
   });
 
+  it("explains a lockout after too many failed sign-ins", async () => {
+    signOut();
+    db.signInFailures.maide = 5;
+    const { user } = renderApp();
+
+    await user.type(await screen.findByLabelText("Username"), "maide");
+    await user.type(screen.getByLabelText("Password"), PASSWORD);
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Too many failed sign-ins; try again in about 15 minutes.",
+    );
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+  });
+
   it("offers the demo accounts when the server lists them", async () => {
     signOut();
     const viewer = addAccount("viewer", "alex.chen", "Alex Chen");

@@ -422,6 +422,37 @@
           "repair": "Resolve cross-layer issues and rerun full verification."
         }
       ]
+    },
+    {
+      "id": "feat-016",
+      "name": "Sign-in rate limiting",
+      "behavior": "Repeated failed sign-ins are refused for a while: after 5 failures for a username within 15 minutes, or 20 from one client address, sign-in answers 429 with Retry-After, even with the right password; unknown usernames are counted the same way; a success clears the username's failures; failures live in PostgreSQL and the client address comes from nginx.",
+      "verification": "Service tests for the per-username and per-address limits, the window, clearing on success and unknown usernames; API tests for 429 and Retry-After against PostgreSQL; migration 0007 up and down; the sign-in page explains a 429; npm run check, the compose smoke test and CI pass.",
+      "dependencies": [
+        "feat-015"
+      ],
+      "layers": [
+        {
+          "label": "Layer 1: Static checks",
+          "cmd": "npm run lint",
+          "repair": "Fix static-analysis issues and rerun the layer command."
+        },
+        {
+          "label": "Layer 2: Runtime tests",
+          "cmd": "npm run test",
+          "repair": "Fix failing tests and rerun the layer command."
+        },
+        {
+          "label": "Layer 3: System confirmation",
+          "cmd": "npm run check",
+          "repair": "Resolve cross-layer issues and rerun full verification."
+        },
+        {
+          "label": "Layer 3a: Repository gates",
+          "cmd": "npm run verify-all",
+          "repair": "Fix Layer 3a: Repository gates failures and rerun the layer command."
+        }
+      ]
     }
   ]
 }

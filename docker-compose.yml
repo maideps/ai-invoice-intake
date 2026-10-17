@@ -69,6 +69,10 @@ services:
 
   api:
     <<: *backend
+    # Take the client address from nginx's X-Forwarded-For (sign-in rate limiting, D-022).
+    # Trusting every sender is safe only because the API publishes no port: only containers
+    # on this network, in practice nginx, can reach it.
+    command: ["uvicorn", "invoice_intake.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
     depends_on:
       migrate:
         condition: service_completed_successfully

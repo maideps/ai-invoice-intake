@@ -15,6 +15,11 @@ interface Props {
 const field =
   "h-10 w-full rounded-lg border border-border-strong bg-surface px-3 text-sm outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-ring";
 
+function sentence(text: string): string {
+  const capitalised = text.charAt(0).toUpperCase() + text.slice(1);
+  return capitalised.endsWith(".") ? capitalised : `${capitalised}.`;
+}
+
 export function SignInPage({ unreachable, onRetry }: Props) {
   const signIn = useSignIn();
   const demo = useDemoAccounts();
@@ -27,9 +32,11 @@ export function SignInPage({ unreachable, onRetry }: Props) {
   const message =
     error instanceof ApiError && error.status === 401
       ? "Wrong username or password."
-      : error
-        ? error.message
-        : null;
+      : error instanceof ApiError && error.status === 429
+        ? sentence(error.message) // "too many failed sign-ins; try again in about 13 minutes" (D-022)
+        : error
+          ? error.message
+          : null;
 
   function submit(event: FormEvent) {
     event.preventDefault();

@@ -81,7 +81,7 @@ What holds it together:
 - **AI output is a draft.** The model's answer is validated against one schema in one place and kept in the audit trail whether it is accepted or not. Nothing reaches `exported` without a person's approval.
 - **The audit trail cannot be rewritten.** A database trigger refuses updates and deletes on audit events; an invoice is rebuilt by replaying its trail through the lifecycle rules.
 - **Slow work happens in the background.** An upload answers in milliseconds. Jobs go to Redis only after the transaction commits. The queue never loses a job: a worker that crashes leaves it to be picked up again. The steps are idempotent, so running one twice is harmless.
-- **Who did what can be trusted.** People sign in; the session is an HttpOnly, SameSite cookie whose token is stored only as a hash; passwords are scrypt hashes. Every route declares the role it needs, and a test walks all routes so a new one can't be left open.
+- **Who did what can be trusted.** People sign in; the session is an HttpOnly, SameSite cookie whose token is stored only as a hash; passwords are scrypt hashes. Every route declares the role it needs, and a test walks all routes so a new one can't be left open. Failed sign-ins are counted per username and per client address, so passwords can't be guessed at speed.
 - **Concurrent reviewers don't overwrite each other.** Every edit and decision carries the version the reviewer saw; a stale one is refused with 409 and the screen offers a reload.
 - **The provider is configuration.** The extraction provider sits behind an interface owned by the domain; one factory reads the setting, and tests never call a real model.
 - **Layering is enforced.** The domain imports only the standard library, and the API and services never import infrastructure. `npm run check-arch` fails if either rule is broken.
@@ -126,6 +126,7 @@ Each decision is recorded with its context, the alternatives and the consequence
 | [D-018](DECISIONS.md#d-018-backend-dependencies-installed-from-universal-hash-checked-lock-files) | Backend packages install from universal, hash-checked lock files, like the frontend's `package-lock.json`. |
 | [D-019](DECISIONS.md#d-019-sign-in-with-sessions-and-three-roles-enforced-by-the-api) | Sign-in with server-side sessions in an HttpOnly cookie, scrypt passwords, three roles enforced on every route, and demo accounts for the Docker demo. |
 | [D-020](DECISIONS.md#d-020-small-clock-steps-dont-refuse-an-action) | An audit event a few seconds behind the previous one (a clock stepping back) is recorded at the previous event's time instead of refusing the action. |
+| [D-022](DECISIONS.md#d-022-sign-in-is-rate-limited-per-username-and-per-client-address) | Sign-in is rate-limited: 5 failures per username or 20 per client address in 15 minutes answer 429 until the window passes, even for the right password. |
 
 ## Development
 

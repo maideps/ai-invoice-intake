@@ -11,10 +11,10 @@ After adding or updating a session note, regenerate this file with `node scripts
 - Primary startup command: `./init.sh`
 - Primary verification command: `make check` (make-free equivalent: `npm run check`)
 - Active feature: none
-- Passing features (16): feat-001 — FastAPI service skeleton, feat-002 — Invoice domain model and state machine, feat-003 — Synthetic invoice generator, feat-004 — Persistence and upload API, feat-005 — AI extraction service, feat-006 — Review and approval API, feat-007 — Background worker and queue, feat-008 — Review queue UI, feat-009 — Review detail UI, feat-010 — Export webhook, feat-011 — Docker Compose and CI, feat-012 — README, diagram and demo, feat-013 — Repositories layout, feat-014 — Backend dependency locks, feat-015 — Sign-in and roles, polish-portfolio — Portfolio polish
+- Passing features (17): feat-001 — FastAPI service skeleton, feat-002 — Invoice domain model and state machine, feat-003 — Synthetic invoice generator, feat-004 — Persistence and upload API, feat-005 — AI extraction service, feat-006 — Review and approval API, feat-007 — Background worker and queue, feat-008 — Review queue UI, feat-009 — Review detail UI, feat-010 — Export webhook, feat-011 — Docker Compose and CI, feat-012 — README, diagram and demo, feat-013 — Repositories layout, feat-014 — Backend dependency locks, feat-015 — Sign-in and roles, polish-portfolio — Portfolio polish, feat-016 — Sign-in rate limiting
 - Failing/blocked features: none
 - Planned features (0): none
-- Last evidence: polish-portfolio — Portfolio polish — All verification layers passed via node scripts/framework-check.mjs verify-feature at 2026-10-14T17:26:02.477Z
+- Last evidence: feat-016 — Sign-in rate limiting — All verification layers passed via node scripts/framework-check.mjs verify-feature (2026-10-17T21:29:11.641Z)
 
 ## Session Index
 
@@ -31,4 +31,5 @@ After adding or updating a session note, regenerate this file with `node scripts
 - [Session 011 — 2026-10-14](progress/011-2026-10-14.md)
 - [Session 012 — 2026-10-14](progress/012-2026-10-14.md)
 - [Session 013 — 2026-10-17 — Harness upgrade (framework feat-018 and feat-019)](progress/013-2026-10-17.md)
+- [Session 014 — 2026-10-17 — feat-016 Sign-in rate limiting; framework v0.5.0](progress/014-2026-10-17.md)
 <!-- END GENERATED PROGRESS -->

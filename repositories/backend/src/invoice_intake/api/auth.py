@@ -4,13 +4,24 @@ A successful sign-in sets an HttpOnly, SameSite=Lax session cookie: scripts in t
 read it, and browsers don't send it with requests from other sites, so another site can't act
 for a signed-in reviewer. Sign-in accepts JSON only, so a forged form can't sign someone in
 either.
+
+Failed sign-ins are counted per username and per client address; too many answer 429 with
+``Retry-After`` (D-022).
 """
 
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, HTTPException, Request, Response
 
-from invoice_intake.services.accounts import DEMO_ACCOUNTS, InvalidCredentialsError
+from invoice_intake.services.accounts import (
+    DEMO_ACCOUNTS,
+    AccountServiceFactory,
+    InvalidCredentialsError,
+    SignInThrottledError,
+)
+from invoice_intake.services.accounts import (
+    SignedIn as SignedInSession,
+)
 
 from .dependencies import SESSION_COOKIE, AccountServiceDep, SignedIn
 from .schemas import AccountOut, DemoAccountOut, SignInIn
@@ -21,16 +32,29 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post(
     "/sign-in",
     response_model=AccountOut,
-    responses={401: {"description": "Wrong username or password, or an inactive account"}},
+    responses={
+        401: {"description": "Wrong username or password, or an inactive account"},
+        429: {"description": "Too many failed sign-ins; retry after ``Retry-After`` seconds"},
+    },
 )
-def sign_in(
-    body: SignInIn, request: Request, response: Response, service: AccountServiceDep
-) -> AccountOut:
+def sign_in(body: SignInIn, request: Request, response: Response) -> AccountOut:
     """Start a session: the response sets the session cookie."""
-    try:
-        signed_in = service.sign_in(body.username, body.password)
-    except InvalidCredentialsError as error:
-        raise HTTPException(401, "wrong username or password") from error
+    # Not the usual service dependency: that rolls back when the route raises, and a failed
+    # sign-in must be committed to count. The outcome is caught inside the transaction instead.
+    factory: AccountServiceFactory = request.app.state.account_service
+    outcome: SignedInSession | Exception
+    with factory() as service:
+        try:
+            outcome = service.sign_in(body.username, body.password, client=client_address(request))
+        except (InvalidCredentialsError, SignInThrottledError) as error:
+            outcome = error
+    if isinstance(outcome, SignInThrottledError):
+        raise HTTPException(
+            429, str(outcome), headers={"Retry-After": str(outcome.retry_after_seconds)}
+        )
+    if isinstance(outcome, Exception):
+        raise HTTPException(401, "wrong username or password")
+    signed_in = outcome
     settings = request.app.state.settings
     response.set_cookie(
         SESSION_COOKIE,
@@ -42,6 +66,12 @@ def sign_in(
         path="/",
     )
     return AccountOut.of(signed_in.account)
+
+
+def client_address(request: Request) -> str:
+    """The client's address. Behind nginx it comes from ``X-Forwarded-For``, which nginx sets
+    and uvicorn trusts only from the addresses in ``FORWARDED_ALLOW_IPS`` (D-022)."""
+    return request.client.host if request.client else ""
 
 
 @router.post("/sign-out", status_code=204, response_class=Response)

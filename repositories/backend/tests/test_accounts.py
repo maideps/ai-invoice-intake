@@ -23,13 +23,19 @@ from invoice_intake.services.accounts import (
     AccountService,
     InvalidCredentialsError,
     LastAdminError,
+    SignInPolicy,
+    SignInThrottledError,
     hash_password,
     token_hash,
     verify_password,
 )
 
 from .app_helpers import FAST_PASSWORD_COST
-from .fakes import InMemoryAccountRepository, InMemorySessionRepository
+from .fakes import (
+    InMemoryAccountRepository,
+    InMemorySessionRepository,
+    InMemorySignInFailureRepository,
+)
 
 START = datetime(2026, 10, 14, 9, 0, tzinfo=timezone.utc)
 PASSWORD = "correct horse battery"
@@ -281,3 +287,113 @@ def test_demo_accounts_are_created_once_and_never_changed(service: AccountServic
     assert {a.role for a in created} == set(Role)
     assert again == []
     assert service.sign_in(reviewer.username, "changed by its owner")
+
+
+# Rate limiting (D-022)
+
+WINDOW = timedelta(minutes=15)
+
+
+@pytest.fixture
+def failures() -> InMemorySignInFailureRepository:
+    return InMemorySignInFailureRepository()
+
+
+@pytest.fixture
+def limited(
+    clock: Clock, sessions: InMemorySessionRepository, failures: InMemorySignInFailureRepository
+) -> AccountService:
+    return AccountService(
+        InMemoryAccountRepository(),
+        sessions,
+        clock=clock,
+        session_ttl=timedelta(hours=12),
+        password_cost=FAST_PASSWORD_COST,
+        failures=failures,
+        sign_in_policy=SignInPolicy(max_per_username=3, max_per_client=5, window=WINDOW),
+    )
+
+
+def fail(service: AccountService, username: str = "maide", client: str = "10.0.0.1") -> None:
+    with pytest.raises(InvalidCredentialsError):
+        service.sign_in(username, "wrong password!", client=client)
+
+
+def test_a_locked_username_refuses_even_the_right_password(
+    limited: AccountService, clock: Clock
+) -> None:
+    add(limited)
+    for minute in range(3):
+        clock.now = START + timedelta(minutes=minute)
+        fail(limited)
+
+    with pytest.raises(SignInThrottledError) as refused:
+        limited.sign_in("maide", PASSWORD, client="10.0.0.2")
+
+    # Locked until the first of the three failures is 15 minutes old.
+    assert refused.value.retry_after_seconds == 13 * 60
+    assert str(refused.value) == "too many failed sign-ins; try again in about 13 minutes"
+
+
+def test_the_lock_ends_with_the_window_and_refusals_do_not_extend_it(
+    limited: AccountService, clock: Clock, failures: InMemorySignInFailureRepository
+) -> None:
+    add(limited)
+    for _ in range(3):
+        fail(limited)
+    clock.now = START + timedelta(minutes=10)
+    with pytest.raises(SignInThrottledError):
+        limited.sign_in("maide", "still guessing", client="10.0.0.1")
+    assert len(failures.failures) == 3  # a refused attempt is not recorded
+
+    clock.now = START + WINDOW
+
+    assert limited.sign_in("maide", PASSWORD, client="10.0.0.1").account.username == "maide"
+
+
+def test_unknown_usernames_lock_like_real_ones(limited: AccountService) -> None:
+    for _ in range(3):
+        fail(limited, " Nobody ")
+
+    with pytest.raises(SignInThrottledError):
+        limited.sign_in("nobody", "anything at all", client="10.0.0.9")
+
+
+def test_one_client_address_is_limited_across_usernames(limited: AccountService) -> None:
+    add(limited)
+    for name in ["ana", "bo", "cy", "di", "ed"]:
+        fail(limited, name, client="10.0.0.1")
+
+    with pytest.raises(SignInThrottledError):
+        limited.sign_in("maide", PASSWORD, client="10.0.0.1")
+    # The account itself is not locked: another address signs in.
+    assert limited.sign_in("maide", PASSWORD, client="10.0.0.2").account.username == "maide"
+
+
+def test_without_a_client_address_only_usernames_are_limited(limited: AccountService) -> None:
+    add(limited)
+    for name in ["ana", "bo", "cy", "di", "ed", "flo"]:
+        fail(limited, name, client="")
+
+    assert limited.sign_in("maide", PASSWORD).account.username == "maide"
+
+
+def test_success_clears_the_username_and_old_failures_are_pruned(
+    limited: AccountService, clock: Clock, failures: InMemorySignInFailureRepository
+) -> None:
+    add(limited)
+    fail(limited, "maide")
+    fail(limited, "maide")
+    fail(limited, "someone")
+
+    limited.sign_in("maide", PASSWORD, client="10.0.0.1")
+    assert [f[0] for f in failures.failures] == ["someone"]
+
+    clock.now = START + WINDOW + timedelta(seconds=1)
+    limited.sign_in("maide", PASSWORD, client="10.0.0.1")
+    assert failures.failures == []
+
+
+def test_the_retry_message_rounds_up_to_whole_minutes() -> None:
+    assert str(SignInThrottledError(1)) == "too many failed sign-ins; try again in about 1 minute"
+    assert SignInThrottledError(61).args[0].endswith("about 2 minutes")

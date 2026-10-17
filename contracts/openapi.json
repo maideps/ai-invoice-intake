@@ -59,6 +59,9 @@
           "401": {
             "description": "Wrong username or password, or an inactive account"
           },
+          "429": {
+            "description": "Too many failed sign-ins; retry after ``Retry-After`` seconds"
+          },
           "422": {
             "description": "Validation Error",
             "content": {

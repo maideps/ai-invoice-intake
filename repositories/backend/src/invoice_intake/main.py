@@ -17,11 +17,15 @@ from invoice_intake.api.health import router as health_router
 from invoice_intake.api.invoices import router as invoices_router
 from invoice_intake.api.review import router as review_router
 from invoice_intake.config import Settings, get_settings
-from invoice_intake.infrastructure.accounts import SqlAccountRepository, SqlSessionRepository
+from invoice_intake.infrastructure.accounts import (
+    SqlAccountRepository,
+    SqlSessionRepository,
+    SqlSignInFailureRepository,
+)
 from invoice_intake.infrastructure.database import make_engine, make_session_factory
 from invoice_intake.infrastructure.queue import RedisExtractionQueue
 from invoice_intake.infrastructure.repository import SqlInvoiceRepository
-from invoice_intake.services.accounts import AccountService, AccountServiceFactory
+from invoice_intake.services.accounts import AccountService, AccountServiceFactory, SignInPolicy
 from invoice_intake.services.export import ExportService, ExportServiceFactory
 from invoice_intake.services.extraction import ExtractionService, ExtractionServiceFactory
 from invoice_intake.services.intake import IntakeService, IntakeServiceFactory
@@ -86,6 +90,12 @@ def create_app(
             yield ExportService(SqlInvoiceRepository(session), pending, clock=utc_now)
         pending.flush_to(queue)
 
+    sign_in_policy = SignInPolicy(
+        max_per_username=resolved.sign_in_max_failures,
+        max_per_client=resolved.sign_in_max_failures_per_client,
+        window=timedelta(minutes=resolved.sign_in_lockout_minutes),
+    )
+
     @contextmanager
     def sql_account_service() -> Iterator[AccountService]:
         with sessions.begin() as session:
@@ -94,6 +104,8 @@ def create_app(
                 SqlSessionRepository(session),
                 clock=utc_now,
                 session_ttl=timedelta(hours=resolved.session_ttl_hours),
+                failures=SqlSignInFailureRepository(session),
+                sign_in_policy=sign_in_policy,
             )
 
     @asynccontextmanager

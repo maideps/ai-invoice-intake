@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     export_timeout_seconds: float = Field(default=10.0, gt=0)
     # Sign-in (D-019).
     session_ttl_hours: float = Field(default=12.0, gt=0)
+    # Sign-in rate limiting (D-022): this many failures within the window lock a username, or a
+    # client address, out until the oldest of them is older than the window.
+    sign_in_max_failures: int = Field(default=5, ge=1)
+    sign_in_max_failures_per_client: int = Field(default=20, ge=1)
+    sign_in_lockout_minutes: float = Field(default=15.0, gt=0)
     # Send the session cookie over HTTPS only; turn on wherever the app is served over HTTPS.
     session_cookie_secure: bool = False
     # List the demo accounts on the sign-in page (the Docker demo). Their passwords are public.

@@ -431,14 +431,14 @@ This file records significant architectural decisions, their context, alternativ
 - A CSRF token on every request — Not needed with SameSite=Lax cookies and no state-changing GETs. It would be revisited if the API had to accept cross-site requests.
 - Argon2 or bcrypt packages — Rejected for now: scrypt is in the standard library, memory-hard, and the stored parameters allow a later change.
 - An identity provider or single sign-on (OIDC) — Out of scope for a self-contained demo. The session layer is where it would plug in.
-- Rate limiting sign-in — Deferred: there is no public deployment. A deployment must add it, in the app or at the proxy.
+- Rate limiting sign-in — Deferred: there is no public deployment. A deployment must add it, in the app or at the proxy. (Added by D-022.)
 **Consequences:**
 - Positive: the audit trail names a person who proved who they are; roles are enforced by the API and tested on every route; viewers can be given read access safely.
 - Negative:
   - Every API client must sign in first: the seed, the e2e, the smoke test and the screenshot tool now do.
   - The demo passwords are public by design.
   - There is no password reset by email; an admin, or the command line, sets a new one.
-  - Sign-in is not rate limited yet.
+  - Sign-in was not rate limited (until D-022).
 
 ### D-020: Small clock steps don't refuse an action
 
@@ -466,3 +466,30 @@ This file records significant architectural decisions, their context, alternativ
 **Consequences:**
 - Positive: the progress dashboard can't drift from the feature state, the command reference can't drift from the Makefile, every file uses LF, and failed verification layers keep their logs (in `.harness/logs/`, which ignores itself).
 - Negative: the line-ending commit touches 29 files without changing their content, so `git blame` shows it for those lines unless `--ignore-rev` is used. Session notes now go in `progress/NNN-date.md`, followed by `node scripts/framework-check.mjs progress-update`.
+
+### D-022: Sign-in is rate-limited per username and per client address
+
+**Date:** 2026-10-17
+**Status:** accepted
+**Context:** D-019 deferred rate limiting, so passwords could be guessed as fast as the server answered. That has to be fixed before any public deployment.
+**Decision:**
+- **Limits** (settings): 5 failures for one username, or 20 from one client address, within 15 minutes. Either one refuses sign-in for that username or address until the oldest of those failures is 15 minutes old.
+- **While refused:** sign-in answers 429 with `Retry-After`, without checking the password, and a refused attempt isn't recorded, so the lockout can't extend itself.
+- **What counts:**
+  - Unknown usernames count like real ones, so a lockout doesn't reveal which accounts exist.
+  - A successful sign-in clears that username's failures.
+- **Storage:** failures are rows in PostgreSQL (`sign_in_failures`, migration 0007), written in the sign-in's own transaction. The sign-in route opens the account service itself and catches the outcome inside the transaction, so a refused sign-in still commits its failure. Old rows are deleted as sign-ins happen.
+- **The client address:**
+  - nginx sets `X-Forwarded-For` to the connecting address, replacing whatever the browser sent.
+  - In the Docker stack, uvicorn trusts that header from any sender (`--forwarded-allow-ips "*"`). That is safe because the API publishes no port: only containers on the stack's network can reach it.
+  - Everywhere else, uvicorn's default trusts only 127.0.0.1.
+**Alternatives considered:**
+- Redis counters — Rejected: PostgreSQL is already in the request's transaction and indexed look-ups are cheap at this volume. Redis would add a second store to keep consistent for no gain.
+- Rate limiting at nginx (`limit_req`) — Rejected as the only defence: it can't tell a failed sign-in from a successful one, nor limit per username, and the API must be safe without the proxy.
+- Per-account lockout only — Rejected: one address could still try one password against every username. Per-address only — rejected: a botnet spreads its guesses across addresses.
+- Lockout until an admin unlocks — Rejected: anyone could lock a known user out indefinitely.
+**Consequences:**
+- Positive: guessing a password is limited to 5 tries per 15 minutes per account, across API instances and restarts, and the right password doesn't help during a lockout.
+- Negative:
+  - Anyone who knows a username can lock it out for up to 15 minutes by failing on purpose (the per-address limit slows them down).
+  - Exposing the API port directly would require narrowing `--forwarded-allow-ips` to the proxy's address.

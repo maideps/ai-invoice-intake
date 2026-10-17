@@ -152,3 +152,23 @@ class InMemorySessionRepository:
     def delete_expired(self, *, now: datetime) -> None:
         for key in [key for key, (_, expires) in self.sessions.items() if expires <= now]:
             del self.sessions[key]
+
+
+class InMemorySignInFailureRepository:
+    def __init__(self) -> None:
+        self.failures: list[tuple[str, str, datetime]] = []
+
+    def add(self, username: str, client: str, *, at: datetime) -> None:
+        self.failures.append((username, client, at))
+
+    def times_for_username(self, username: str, *, since: datetime) -> list[datetime]:
+        return sorted(at for name, _, at in self.failures if name == username and at >= since)
+
+    def times_for_client(self, client: str, *, since: datetime) -> list[datetime]:
+        return sorted(at for _, address, at in self.failures if address == client and at >= since)
+
+    def clear_username(self, username: str) -> None:
+        self.failures = [f for f in self.failures if f[0] != username]
+
+    def delete_before(self, cutoff: datetime) -> None:
+        self.failures = [f for f in self.failures if f[2] >= cutoff]

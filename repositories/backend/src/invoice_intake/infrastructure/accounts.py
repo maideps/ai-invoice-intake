@@ -1,15 +1,15 @@
-"""``AccountRepository`` and ``SessionRepository`` on PostgreSQL."""
+"""``AccountRepository``, ``SessionRepository`` and ``SignInFailureRepository`` on PostgreSQL."""
 
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import ColumnElement, delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from invoice_intake.domain import Account, DuplicateUsernameError, Role
 
-from .tables import AccountRow, SessionRow
+from .tables import AccountRow, SessionRow, SignInFailureRow
 
 
 class SqlAccountRepository:
@@ -103,6 +103,36 @@ class SqlSessionRepository:
 
     def delete_expired(self, *, now: datetime) -> None:
         self._session.execute(delete(SessionRow).where(SessionRow.expires_at <= now))
+
+
+class SqlSignInFailureRepository:
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def add(self, username: str, client: str, *, at: datetime) -> None:
+        self._session.add(SignInFailureRow(username=username, client=client[:64], failed_at=at))
+        self._session.flush()
+
+    def times_for_username(self, username: str, *, since: datetime) -> list[datetime]:
+        return self._times(SignInFailureRow.username == username, since)
+
+    def times_for_client(self, client: str, *, since: datetime) -> list[datetime]:
+        return self._times(SignInFailureRow.client == client[:64], since)
+
+    def clear_username(self, username: str) -> None:
+        self._session.execute(delete(SignInFailureRow).where(SignInFailureRow.username == username))
+
+    def delete_before(self, cutoff: datetime) -> None:
+        self._session.execute(delete(SignInFailureRow).where(SignInFailureRow.failed_at < cutoff))
+
+    def _times(self, match: ColumnElement[bool], since: datetime) -> list[datetime]:
+        return list(
+            self._session.scalars(
+                select(SignInFailureRow.failed_at)
+                .where(match, SignInFailureRow.failed_at >= since)
+                .order_by(SignInFailureRow.failed_at)
+            )
+        )
 
 
 def _to_domain(row: AccountRow) -> Account:

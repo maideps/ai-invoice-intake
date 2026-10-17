@@ -24,6 +24,7 @@ TABLES = {
     "invoice_documents",
     "accounts",
     "sessions",
+    "sign_in_failures",
 }
 
 

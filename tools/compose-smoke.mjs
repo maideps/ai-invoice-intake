@@ -21,6 +21,13 @@ const stack = new ComposeStack({
   log: (message) => console.log(`[compose-smoke] ${message}`),
 });
 
+/** Run a docker compose command in the smoke project; its trimmed output (fails the check otherwise). */
+function compose(...args) {
+  const result = spawnSync("docker", ["compose", "-p", stack.project, ...args], { cwd: root, env: stack.env, encoding: "utf8" });
+  check(result.status === 0, `docker compose ${args.join(" ")} failed: ${result.stderr}`);
+  return result.stdout.trim();
+}
+
 await withStack(stack, async () => {
   const health = await stack.start();
   check(health.export_configured === true, "export should be configured in the compose stack");
@@ -30,6 +37,21 @@ await withStack(stack, async () => {
   check(demo.map((a) => a.role).sort().join() === "admin,reviewer,viewer", "one demo account per role");
   check((await fetch(`${stack.web}/api/invoices`)).status === 401, "signed out, the API should answer 401");
 
+  // Sign-in is rate-limited by client address (D-022): nginx must pass the connecting address,
+  // not one the request chose, and the API must see that rather than nginx's own.
+  stack.log("checking a failed sign-in is counted under the real client address");
+  const spoofed = "203.0.113.9";
+  const failed = await fetch(`${stack.web}/api/auth/sign-in`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-forwarded-for": spoofed },
+    body: JSON.stringify({ username: "smoke.nobody", password: "not-the-password" }),
+  });
+  check(failed.status === 401, `a wrong password should answer 401 (got ${failed.status})`);
+  const client = compose("exec", "-T", "postgres", "psql", "-U", "invoice_intake", "-d", "invoice_intake", "-tAc", "SELECT client FROM sign_in_failures WHERE username = 'smoke.nobody'");
+  const nginx = compose("exec", "-T", "web", "hostname", "-i");
+  check(client !== "" && client !== spoofed, `the failure should name the real client, not "${client}"`);
+  check(!nginx.split(/\s+/).includes(client), `the API saw nginx's address (${client}), not the client's`);
+
   stack.log("checking the dashboard is served, including client-side routes");
   for (const route of ["/", "/invoices/00000000-0000-4000-8000-000000000000"]) {
     const page = await fetch(`${stack.web}${route}`);
@@ -38,13 +60,8 @@ await withStack(stack, async () => {
   }
 
   stack.log("checking every built asset is served with the right content type");
-  const listed = spawnSync("docker", ["compose", "-p", stack.project, "exec", "-T", "web", "ls", "/usr/share/nginx/html/assets"], {
-    cwd: root,
-    env: stack.env,
-    encoding: "utf8",
-  });
-  const assets = listed.stdout.split(/\s+/).filter(Boolean);
-  check(listed.status === 0 && assets.length > 0, "could not list the built assets");
+  const assets = compose("exec", "-T", "web", "ls", "/usr/share/nginx/html/assets").split(/\s+/).filter(Boolean);
+  check(assets.length > 0, "could not list the built assets");
   for (const asset of assets) {
     const expected = TYPES[asset.split(".").pop()];
     if (!expected) continue;

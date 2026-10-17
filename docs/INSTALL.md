@@ -183,6 +183,9 @@ another program already uses port 8080 or 9000. Choose other ports in `.env` (se
 **"Wrong username or password"**:
 usernames are lower case (`sam.rivera`), and passwords are case-sensitive. A forgotten password: `docker compose exec api python -m invoice_intake.accounts set-password <username>`.
 
+**"Too many failed sign-ins; try again in about N minutes"**:
+5 wrong passwords for one username (or 20 from one computer) within 15 minutes lock sign-in for it until the oldest of them is 15 minutes old; even the right password waits. Wait the time shown. To clear it at once in the demo, restart from a clean slate (`docker compose down -v`), which also deletes the uploaded invoices.
+
 **Back on the sign-in page unexpectedly**:
 sessions last 12 hours (`INVOICE_INTAKE_SESSION_TTL_HOURS`), and an admin deactivating your account or setting a new password ends them.
 
