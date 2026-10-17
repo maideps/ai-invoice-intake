@@ -450,3 +450,19 @@ This file records significant architectural decisions, their context, alternativ
 - Database time (`now()`) for every event — Rejected: the domain builds events before saving them, and tests use injected clocks. Clamping in one domain method keeps both.
 - Dropping the rule — Rejected: a trail out of order is misleading, and a large skew is worth refusing.
 **Consequences:** An event stamped by a slightly late clock shows the previous event's time instead of its own, which is off by at most 5 seconds.
+
+### D-021: Follow ai-harness-framework's generated progress log and command reference
+
+**Date:** 2026-10-17
+**Status:** accepted
+**Context:** The feedback from building this project became framework issues #2-#10, fixed upstream, and two follow-ups (feat-018, feat-019 in the framework, PRs #20 and #21). Upgrading this project to that version brought new formats with it: a `PROGRESS.md` generated from the feature state plus one note per session in `progress/`; `docs/HARNESS.md` generated from the Makefile and npm scripts; an `activate` command; per-layer verification logs; and `.gitattributes` with LF line endings.
+**Decision:**
+- Follow the upgrade report:
+  - add the `activate` and `harness-docs` npm scripts and the `activate` make target
+  - run `progress-migrate`, which moved sessions 001-012 into `progress/` unchanged
+  - let `npm run harness-docs` own `docs/HARNESS.md`
+- The hand-written `docs/HARNESS.md` from D-016 is replaced by the generated reference. The README keeps its "Built with ai-harness-framework" explanation and links to it.
+- `.gitattributes` (`* text=auto eol=lf`) is adopted, and the 29 files committed with CRLF are renormalised once, in their own commit. Mixed line endings had broken scripted edits and inflated diffs (sessions 009 and 011).
+**Consequences:**
+- Positive: the progress dashboard can't drift from the feature state, the command reference can't drift from the Makefile, every file uses LF, and failed verification layers keep their logs (in `.harness/logs/`, which ignores itself).
+- Negative: the line-ending commit touches 29 files without changing their content, so `git blame` shows it for those lines unless `--ignore-rev` is used. Session notes now go in `progress/NNN-date.md`, followed by `node scripts/framework-check.mjs progress-update`.

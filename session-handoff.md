@@ -23,6 +23,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - [x] Session 010: `docs/INSTALL.md`, a step-by-step install guide (run with Docker, everyday commands, `.env` settings, troubleshooting, development setup), linked from the README; `npm run seed` loads the samples into a development API.
 - [x] Session 011: feat-014 universal hashed dependency locks (D-018); feat-015 sign-in with viewer/reviewer/admin, sessions, Users screen and demo accounts (D-019); small clock steps no longer refuse an action (D-020).
 - [x] Session 012: the profile README (`maideps/maideps`, commit 4ab7425) features the app; repository topics; README decisions in order with D-017 and D-020; "Built with ai-harness-framework"; harness reference moved to `docs/HARNESS.md`; alt-text check; fresh-clone quick start verified; release v1.0.0.
+- [x] Session 013: framework issues #2-#10 checked; framework PRs #20 and #21 (feat-018, feat-019); this project upgraded: generated `PROGRESS.md` with `progress/` notes, generated `docs/HARNESS.md`, `activate`, `.gitattributes` with LF (D-021).
 - [x] Fixed two bugs upstream in `ai-harness-framework` and applied them here with `harness-upgrade`: backup-id collisions (D-021, commit 53eaa48) and adoption-matrix fixtures breaking on customised scripts (D-022, commit 79bd6c4).
 
 ## Verification Evidence
@@ -79,6 +80,7 @@ Fill this at session end for large sessions; keep it current otherwise.
 - D-002: stack and scope (invoices, React, synthetic data, AI behind an interface, human approval required).
 - D-003: backend tooling runs through the `tools/py.mjs` launcher wired into the harness scripts.
 - D-004: `e2e` stays a SKIP placeholder until real end-to-end tests exist (planned feat-009 / feat-011).
+- D-021: follow the framework's generated progress log (`progress/NNN-date.md` notes, then `node scripts/framework-check.mjs progress-update`) and generated `docs/HARNESS.md` (`npm run harness-docs`); `.gitattributes` with LF everywhere.
 - D-020: an audit event up to 5 s earlier than the previous one is recorded at the previous event's time (clock steps between the API and the worker); more is refused.
 - D-019: sign-in. Roles viewer, reviewer and admin, enforced per route (`Reader`, `Uploader`, `Reviewer`, `Admin`); scrypt passwords; session tokens stored as SHA-256 in an HttpOnly SameSite=Lax cookie, 12 h; admins manage accounts (the last admin stays); `python -m invoice_intake.accounts` (`npm run accounts --`); demo accounts sam.rivera, alex.chen and jordan.lee, created by `accounts demo` and listed only with `INVOICE_INTAKE_DEMO_ACCOUNTS`.
 - D-018: backend installs from `requirements.lock` and `requirements-dev.lock` (uv, universal, hashed) with `pip --require-hashes`; `npm run lock:backend` regenerates them, and a test catches drift.

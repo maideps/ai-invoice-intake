@@ -36,6 +36,8 @@
     "e2e": "node tools/e2e.mjs",
     "dev": "node scripts/framework-check.mjs dev",
     "check-arch": "node scripts/framework-check.mjs check-arch",
+    "activate": "node scripts/framework-check.mjs activate",
+    "harness-docs": "node scripts/harness-docs.mjs",
     "verify-feature": "node scripts/framework-check.mjs verify-feature",
     "verify-all": "node scripts/framework-check.mjs verify-all",
     "lane-new": "node scripts/framework-check.mjs lane-new",

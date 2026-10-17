@@ -176,7 +176,7 @@ docs/                    architecture, product, quality, sprint contracts
 
 This project was built one feature at a time with [ai-harness-framework](https://github.com/maideps/ai-harness-framework), a workflow that keeps AI coding agents consistent and reviewable across long, multi-session work. Each feature has a sprint contract in [docs/sprints/](docs/sprints/) and is done only when `npm run verify-feature` passes the static checks, the tests and the full end-to-end check, and records the evidence.
 
-That is why some files in the root are the process record rather than product code: `AGENTS.md` is the workflow every agent follows, and `CLAUDE.md`, `GEMINI.md` and `codex.md` point each agent to it. `feature_list.json` lists the features, `PROGRESS.md` (with `claude-progress.md` as an alias) and `session-handoff.md` record what each session did and verified, and `DECISIONS.md` records why. The harness commands are in [docs/HARNESS.md](docs/HARNESS.md).
+That is why some files in the root are the process record rather than product code: `AGENTS.md` is the workflow every agent follows, and `CLAUDE.md`, `GEMINI.md` and `codex.md` point each agent to it. `feature_list.json` lists the features; `PROGRESS.md` is a dashboard generated from the feature state, indexing one note per session in `progress/` (`claude-progress.md` is an alias); `session-handoff.md` says where things stand; and `DECISIONS.md` records why. The harness commands are in [docs/HARNESS.md](docs/HARNESS.md).
 
 ## Documentation
 
